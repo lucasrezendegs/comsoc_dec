@@ -1,0 +1,389 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  X, 
+  Send, 
+  Calendar, 
+  Tag, 
+  AlertCircle, 
+  CheckCircle2, 
+  Link as LinkIcon, 
+  User, 
+  FileText,
+  Clock,
+  Sparkles
+} from 'lucide-react';
+import { Demand, DemandCategory, DemandPriority, DemandStatus, TeamMember } from '../types';
+import { useToast } from './Toast';
+
+interface DemandModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (demand: Demand) => void;
+  editingDemand?: Demand | null;
+  members: TeamMember[];
+  defaultAssigneeId?: string;
+}
+
+const CATEGORIES: DemandCategory[] = [
+  'Vídeo / Edição',
+  'Design / Arte',
+  'Fotografia / Cobertura',
+  'Redação / Nota',
+  'Impressão / Material',
+  'Outros',
+];
+
+const PRIORITIES: DemandPriority[] = ['Baixa', 'Média', 'Alta', 'Urgente'];
+const STATUSES: DemandStatus[] = ['A Fazer', 'Em Produção', 'Em Revisão', 'Concluído'];
+
+export const DemandModal: React.FC<DemandModalProps> = ({
+  isOpen,
+  onClose,
+  onSave,
+  editingDemand,
+  members,
+  defaultAssigneeId,
+}) => {
+  const { showToast } = useToast();
+
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [assigneeId, setAssigneeId] = useState('');
+  const [requester, setRequester] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [category, setCategory] = useState<DemandCategory>('Design / Arte');
+  const [priority, setPriority] = useState<DemandPriority>('Média');
+  const [status, setStatus] = useState<DemandStatus>('A Fazer');
+  const [filesLink, setFilesLink] = useState('');
+
+  // Helper to format date for datetime-local input
+  const getSuggestedDateTime = (offsetHours: number) => {
+    const d = new Date();
+    d.setHours(d.getHours() + offsetHours);
+    d.setMinutes(0);
+    d.setSeconds(0);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}T${hh}:00`;
+  };
+
+  useEffect(() => {
+    if (editingDemand) {
+      setTitle(editingDemand.title || '');
+      setDescription(editingDemand.description || '');
+      setAssigneeId(editingDemand.assignee_id || '');
+      setRequester(editingDemand.requester || '');
+      setDueDate(editingDemand.due_date || '');
+      setCategory(editingDemand.category || 'Design / Arte');
+      setPriority(editingDemand.priority || 'Média');
+      setStatus(editingDemand.status || 'A Fazer');
+      setFilesLink(editingDemand.files_link || '');
+    } else {
+      setTitle('');
+      setDescription('');
+      setAssigneeId(defaultAssigneeId || members[0]?.id || '');
+      setRequester('');
+      setDueDate(getSuggestedDateTime(24)); // Default to tomorrow
+      setCategory('Design / Arte');
+      setPriority('Média');
+      setStatus('A Fazer');
+      setFilesLink('');
+    }
+  }, [editingDemand, isOpen, defaultAssigneeId, members]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!title.trim()) {
+      showToast('O Título da Tarefa é obrigatório.', 'error');
+      return;
+    }
+
+    if (!requester.trim()) {
+      showToast('Informe para quem entregar / solicitante.', 'error');
+      return;
+    }
+
+    if (!dueDate) {
+      showToast('Informe o Prazo de Entrega.', 'error');
+      return;
+    }
+
+    const demandToSave: Demand = {
+      id: editingDemand ? editingDemand.id : `dem_${Date.now()}`,
+      title: title.trim(),
+      description: description.trim(),
+      assignee_id: assigneeId,
+      requester: requester.trim(),
+      due_date: dueDate,
+      category,
+      priority,
+      status,
+      files_link: filesLink.trim(),
+      created_at: editingDemand ? editingDemand.created_at : new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    onSave(demandToSave);
+    showToast(editingDemand ? 'Demanda atualizada com sucesso!' : 'Nova demanda cadastrada no painel!', 'success');
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/60 backdrop-blur-xs overflow-y-auto animate-in fade-in">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden my-6">
+        {/* Modal Header */}
+        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 flex items-center justify-center font-bold">
+              <FileText className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">
+                {editingDemand ? 'Editar Demanda' : 'Cadastrar Nova Demanda'}
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Seção de Comunicação Social
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Modal Form */}
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 text-xs">
+          {/* Título da Tarefa */}
+          <div>
+            <label className="block font-semibold text-slate-800 dark:text-slate-200 mb-1.5">
+              Título da Tarefa *
+            </label>
+            <input
+              type="text"
+              required
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              placeholder="Ex: Edição do vídeo institucional de encerramento de ano"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500 font-medium"
+            />
+          </div>
+
+          {/* Para quem entregar / Solicitante */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block font-semibold text-slate-800 dark:text-slate-200 mb-1.5 flex items-center gap-1.5">
+                <Send className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+                <span>Para quem entregar / Solicitante *</span>
+              </label>
+              <input
+                type="text"
+                required
+                value={requester}
+                onChange={e => setRequester(e.target.value)}
+                placeholder="Ex: Chefia do Gabinete, RH, Imprensa..."
+                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500"
+              />
+            </div>
+
+            {/* Responsável da Seção */}
+            <div>
+              <label className="block font-semibold text-slate-800 dark:text-slate-200 mb-1.5 flex items-center gap-1.5">
+                <User className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+                <span>Responsável da Seção</span>
+              </label>
+              <select
+                value={assigneeId}
+                onChange={e => setAssigneeId(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500 cursor-pointer"
+              >
+                <option value="">A definir / Sem responsável</option>
+                {members.map(m => (
+                  <option key={m.id} value={m.id}>
+                    {m.name} — {m.role}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Prazo de Entrega */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+                <span>Prazo de Entrega (Data e Hora) *</span>
+              </label>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setDueDate(getSuggestedDateTime(6))}
+                  className="text-[10px] px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 transition"
+                >
+                  Hoje
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDueDate(getSuggestedDateTime(24))}
+                  className="text-[10px] px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 transition"
+                >
+                  Amanhã
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDueDate(getSuggestedDateTime(72))}
+                  className="text-[10px] px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 transition"
+                >
+                  Em 3 dias
+                </button>
+              </div>
+            </div>
+            <input
+              type="datetime-local"
+              required
+              value={dueDate}
+              onChange={e => setDueDate(e.target.value)}
+              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500"
+            />
+          </div>
+
+          {/* Categoria, Prioridade e Status em 3 colunas */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* Categoria */}
+            <div>
+              <label className="block font-semibold text-slate-800 dark:text-slate-200 mb-1.5">
+                Categoria
+              </label>
+              <select
+                value={category}
+                onChange={e => setCategory(e.target.value as DemandCategory)}
+                className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500 cursor-pointer"
+              >
+                {CATEGORIES.map(c => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Prioridade */}
+            <div>
+              <label className="block font-semibold text-slate-800 dark:text-slate-200 mb-1.5">
+                Prioridade
+              </label>
+              <select
+                value={priority}
+                onChange={e => setPriority(e.target.value as DemandPriority)}
+                className={`w-full px-3.5 py-2 rounded-xl border text-xs focus:outline-none font-semibold cursor-pointer ${
+                  priority === 'Urgente'
+                    ? 'bg-red-50 text-red-700 border-red-300 dark:bg-red-950/70 dark:text-red-300 dark:border-red-800'
+                    : priority === 'Alta'
+                    ? 'bg-orange-50 text-orange-700 border-orange-300 dark:bg-orange-950/70 dark:text-orange-300 dark:border-orange-800'
+                    : priority === 'Média'
+                    ? 'bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-950/70 dark:text-blue-300 dark:border-blue-800'
+                    : 'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
+                }`}
+              >
+                {PRIORITIES.map(p => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Status Atual */}
+            <div>
+              <label className="block font-semibold text-slate-800 dark:text-slate-200 mb-1.5">
+                Status Atual
+              </label>
+              <select
+                value={status}
+                onChange={e => setStatus(e.target.value as DemandStatus)}
+                className={`w-full px-3.5 py-2 rounded-xl border text-xs focus:outline-none font-semibold cursor-pointer ${
+                  status === 'Concluído'
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300 dark:bg-emerald-950/70 dark:text-emerald-300 dark:border-emerald-800'
+                    : status === 'Em Produção'
+                    ? 'bg-blue-50 text-blue-800 border-blue-300 dark:bg-blue-950/70 dark:text-blue-300 dark:border-blue-800'
+                    : status === 'Em Revisão'
+                    ? 'bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/70 dark:text-amber-300 dark:border-amber-800'
+                    : 'bg-slate-50 text-slate-800 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
+                }`}
+              >
+                {STATUSES.map(s => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Descrição / Briefing */}
+          <div>
+            <label className="block font-semibold text-slate-800 dark:text-slate-200 mb-1.5">
+              Descrição / Briefing (orientações e detalhes técnicos)
+            </label>
+            <textarea
+              rows={3}
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              placeholder="Descreva dimensões, público-alvo, referências visuais, roteiro ou instruções específicas..."
+              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500 resize-none"
+            />
+          </div>
+
+          {/* Link de Arquivos / Entrega */}
+          <div>
+            <label className="block font-semibold text-slate-800 dark:text-slate-200 mb-1.5 flex items-center gap-1.5">
+              <LinkIcon className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+              <span>Link de Arquivos / Entrega (Google Drive, Canva, Figma, OneDrive...)</span>
+            </label>
+            <input
+              type="url"
+              value={filesLink}
+              onChange={e => setFilesLink(e.target.value)}
+              placeholder="https://drive.google.com/... ou https://canva.com/..."
+              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500"
+            />
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100 dark:border-slate-800">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2.5 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 font-semibold transition"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 active:scale-95 text-white font-semibold shadow-sm transition"
+            >
+              {editingDemand ? 'Atualizar Demanda' : 'Criar Demanda'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};

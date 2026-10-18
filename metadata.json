@@ -1,0 +1,6 @@
+{
+  "name": "ComunicaDemandas - Gestão de Demandas de Comunicação Social",
+  "description": "Painel centralizado, visual e em tempo real para controle de demandas da equipe de Comunicação Social.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
