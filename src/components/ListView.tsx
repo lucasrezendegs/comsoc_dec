@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { 
   ArrowUpDown, 
   ExternalLink, 
-  Share2, 
   Edit3, 
   Trash2, 
   AlertTriangle, 
@@ -27,7 +26,6 @@ interface ListViewProps {
   onUpdateStatus: (id: string, newStatus: DemandStatus) => void;
   onEditDemand: (demand: Demand) => void;
   onDeleteDemand: (id: string) => void;
-  onCopyWhatsAppSingle: (demand: Demand) => void;
   onViewDemand: (demand: Demand) => void;
 }
 
@@ -39,7 +37,6 @@ export const ListView: React.FC<ListViewProps> = ({
   onUpdateStatus,
   onEditDemand,
   onDeleteDemand,
-  onCopyWhatsAppSingle,
   onViewDemand,
 }) => {
   const [sortField, setSortField] = useState<SortField>('due_date');
@@ -97,7 +94,7 @@ export const ListView: React.FC<ListViewProps> = ({
                 className="py-3 px-4 cursor-pointer hover:text-slate-900 dark:hover:text-white transition"
               >
                 <div className="flex items-center gap-1.5">
-                  <span>Tarefa & Briefing</span>
+                  <span>Tarefa (Clique p/ Abrir Janela)</span>
                   <ArrowUpDown className="w-3 h-3 text-slate-400" />
                 </div>
               </th>
@@ -152,25 +149,29 @@ export const ListView: React.FC<ListViewProps> = ({
                   <tr
                     key={demand.id}
                     onClick={() => onViewDemand(demand)}
-                    className={`cursor-pointer hover:bg-slate-50/90 dark:hover:bg-slate-800/50 transition-colors group ${
+                    className={`cursor-pointer hover:bg-slate-50/90 dark:hover:bg-slate-800/50 transition-colors group select-none ${
                       deadline.status === 'overdue' && demand.status !== 'Concluído'
                         ? 'bg-red-50/20 dark:bg-red-950/10'
                         : ''
                     }`}
                   >
-                    {/* Tarefa & Briefing */}
+                    {/* Tarefa & Briefing with explicit clickable button */}
                     <td className="py-3 px-4 max-w-xs">
-                      <div className="flex items-center justify-between gap-1">
-                        <div 
-                          className="font-semibold text-slate-900 dark:text-slate-100 text-sm leading-tight group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors"
-                          title="Clique para abrir detalhes completos da demanda"
-                        >
-                          {demand.title}
-                        </div>
-                        <span className="opacity-0 group-hover:opacity-100 text-slate-400 transition-opacity">
-                          <Maximize2 className="w-3.5 h-3.5" />
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onViewDemand(demand);
+                        }}
+                        className="w-full text-left font-bold text-slate-900 dark:text-slate-100 text-sm leading-tight group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors flex items-center justify-between gap-2 cursor-pointer focus:outline-none"
+                        title="Clique para abrir detalhes desta demanda em uma janela completa"
+                      >
+                        <span className="hover:underline">{demand.title}</span>
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/80 px-1.5 py-0.5 rounded border border-sky-200 dark:border-sky-800 shrink-0 group-hover:bg-sky-600 group-hover:text-white transition">
+                          <Maximize2 className="w-3 h-3" />
+                          <span>Abrir</span>
                         </span>
-                      </div>
+                      </button>
                       {demand.description && (
                         <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-sm mt-0.5">
                           {demand.description}
@@ -292,26 +293,29 @@ export const ListView: React.FC<ListViewProps> = ({
                       )}
                     </td>
 
-                    {/* Ações */}
+                    {/* Ações: Abrir Janela, Editar, Excluir */}
                     <td className="py-3 px-4 text-right" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1">
                         <button
-                          onClick={() => onCopyWhatsAppSingle(demand)}
-                          className="p-1.5 rounded-lg text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 transition"
-                          title="Copiar texto para WhatsApp"
+                          type="button"
+                          onClick={() => onViewDemand(demand)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950/50 transition cursor-pointer"
+                          title="Abrir Janela da Demanda"
                         >
-                          <Share2 className="w-4 h-4" />
+                          <Maximize2 className="w-4 h-4" />
                         </button>
                         <button
+                          type="button"
                           onClick={() => onEditDemand(demand)}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
                           title="Editar demanda"
                         >
                           <Edit3 className="w-4 h-4" />
                         </button>
                         <button
+                          type="button"
                           onClick={() => onDeleteDemand(demand.id)}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition"
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition cursor-pointer"
                           title="Excluir demanda"
                         >
                           <Trash2 className="w-4 h-4" />

@@ -10,11 +10,11 @@ import {
   User, 
   Edit3, 
   Trash2, 
-  Share2, 
   FileText,
   Briefcase,
   Layers,
-  ArrowRight
+  ArrowRight,
+  Maximize2
 } from 'lucide-react';
 import { Demand, DemandStatus, TeamMember } from '../types';
 import { analyzeDeadline, formatBrazilianDate } from '../utils/dateUtils';
@@ -24,7 +24,6 @@ import {
   getPriorityBadge, 
   getInitials 
 } from '../utils/styleHelpers';
-import { generateSingleDemandWhatsAppText } from '../utils/whatsappExport';
 import { useToast } from './Toast';
 
 interface DemandDetailModalProps {
@@ -66,12 +65,6 @@ export const DemandDetailModal: React.FC<DemandDetailModalProps> = ({
   const deadline = analyzeDeadline(demand.due_date, demand.status);
   const priorityInfo = getPriorityBadge(demand.priority);
 
-  const handleCopyWhatsApp = () => {
-    const text = generateSingleDemandWhatsAppText(demand, assignee);
-    navigator.clipboard.writeText(text);
-    showToast('Demanda copiada para o WhatsApp!', 'success');
-  };
-
   const handleEdit = () => {
     onClose();
     onEditDemand(demand);
@@ -84,41 +77,73 @@ export const DemandDetailModal: React.FC<DemandDetailModalProps> = ({
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/70 backdrop-blur-sm overflow-y-auto animate-in fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/75 backdrop-blur-sm overflow-y-auto animate-in fade-in duration-150"
       onClick={onClose}
     >
       <div 
-        className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden my-6 transition-all"
+        className="bg-white dark:bg-slate-900 border-2 border-slate-300 dark:border-slate-700 rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden my-6 transition-all ring-1 ring-black/10"
         onClick={e => e.stopPropagation()}
       >
-        {/* Header with window title & prominent close button */}
-        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-850">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Janela de Demanda
-            </span>
-            <span className="text-slate-300 dark:text-slate-700">•</span>
-            <span className="text-xs font-mono text-slate-400 dark:text-slate-500">
-              ID: {demand.id}
-            </span>
+        {/* Window Titlebar with OS style dots & ultra-clear Close Button */}
+        <div className="flex items-center justify-between p-3.5 sm:p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-100/90 dark:bg-slate-800/90">
+          <div className="flex items-center gap-2.5">
+            {/* Window control dots: red dot clicks to close */}
+            <div className="flex items-center gap-1.5 mr-1">
+              <button
+                type="button"
+                onClick={onClose}
+                className="w-3.5 h-3.5 rounded-full bg-red-500 hover:bg-red-600 transition flex items-center justify-center text-[8px] text-white cursor-pointer shadow-2xs"
+                title="Fechar Janela"
+              >
+                ✕
+              </button>
+              <span className="w-3.5 h-3.5 rounded-full bg-amber-400 opacity-80" />
+              <span className="w-3.5 h-3.5 rounded-full bg-emerald-400 opacity-80" />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                Janela da Demanda
+              </span>
+              <span className="text-slate-300 dark:text-slate-600">•</span>
+              <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-700 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-600">
+                {demand.id}
+              </span>
+            </div>
           </div>
 
-          {/* Prominent Close Window Button */}
+          {/* Prominent High-Contrast Close Window Button */}
           <button
+            type="button"
             onClick={onClose}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-200/80 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 active:scale-95 transition shadow-xs"
-            title="Fechar esta janela (ou pressione Esc)"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-red-600 hover:bg-red-500 active:scale-95 transition shadow-sm cursor-pointer"
+            title="Fechar esta janela e voltar ao painel"
           >
-            <X className="w-4 h-4" />
+            <X className="w-4 h-4 stroke-[2.5]" />
             <span>Fechar Janela</span>
           </button>
         </div>
 
+        {/* Informative helper banner */}
+        <div className="px-5 py-2 bg-sky-50 dark:bg-sky-950/40 border-b border-sky-100 dark:border-sky-900/40 flex items-center justify-between text-xs text-sky-800 dark:text-sky-300">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold">💡 Janela de Detalhes:</span>
+            <span>Visualize ou altere as informações da demanda abaixo.</span>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-[11px] font-bold text-sky-700 dark:text-sky-400 hover:underline cursor-pointer hidden sm:block"
+          >
+            Clique aqui para fechar
+          </button>
+        </div>
+
         {/* Modal Body */}
-        <div className="p-5 sm:p-6 space-y-5 text-sm max-h-[75vh] overflow-y-auto scrollbar-thin">
-          {/* Top Badges: Category & Priority */}
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
+        <div className="p-5 sm:p-6 space-y-5 text-sm max-h-[72vh] overflow-y-auto scrollbar-thin">
+          {/* Top Badges: Category, Priority and Interactive Status */}
+          <div className="flex flex-wrap items-center justify-between gap-2.5">
+            <div className="flex flex-wrap items-center gap-2">
               <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold border ${getCategoryBadgeClass(demand.category)}`}>
                 {getCategoryIcon(demand.category)}
                 <span>{demand.category}</span>
@@ -130,13 +155,13 @@ export const DemandDetailModal: React.FC<DemandDetailModalProps> = ({
               </span>
             </div>
 
-            {/* Quick interactive status switcher right at the top */}
-            <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
-              <span className="text-xs font-medium text-slate-500 dark:text-slate-400 pl-2">Status:</span>
+            {/* Quick interactive status switcher */}
+            <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
+              <span className="text-xs font-semibold text-slate-600 dark:text-slate-400 pl-1.5">Status:</span>
               <select
                 value={demand.status}
                 onChange={e => onUpdateStatus(demand.id, e.target.value as DemandStatus)}
-                className={`text-xs font-bold rounded-lg px-2.5 py-1 border transition-all cursor-pointer ${
+                className={`text-xs font-bold rounded-lg px-2.5 py-1 border transition-all cursor-pointer focus:outline-none ${
                   demand.status === 'Concluído'
                     ? 'bg-emerald-50 text-emerald-800 border-emerald-300 dark:bg-emerald-950/70 dark:text-emerald-300 dark:border-emerald-800'
                     : demand.status === 'Em Produção'
@@ -156,7 +181,10 @@ export const DemandDetailModal: React.FC<DemandDetailModalProps> = ({
           </div>
 
           {/* Full Title */}
-          <div>
+          <div className="bg-slate-50 dark:bg-slate-800/40 p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800">
+            <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-1">
+              Título da Tarefa
+            </span>
             <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-slate-100 leading-tight">
               {demand.title}
             </h2>
@@ -165,7 +193,7 @@ export const DemandDetailModal: React.FC<DemandDetailModalProps> = ({
           {/* Key Details Grid: Solicitante, Responsável & Prazo */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {/* Solicitante */}
-            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-800">
               <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
                 Entregar Para (Solicitante)
               </span>
@@ -176,7 +204,7 @@ export const DemandDetailModal: React.FC<DemandDetailModalProps> = ({
             </div>
 
             {/* Responsável */}
-            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-800">
               <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
                 Responsável
               </span>
@@ -213,7 +241,7 @@ export const DemandDetailModal: React.FC<DemandDetailModalProps> = ({
                 ? 'bg-amber-50/80 border-amber-200 dark:bg-amber-950/40 dark:border-amber-900/60 text-amber-900 dark:text-amber-200'
                 : deadline.status === 'completed'
                 ? 'bg-emerald-50/80 border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-900/60 text-emerald-900 dark:text-emerald-200'
-                : 'bg-slate-50 dark:bg-slate-800/60 border-slate-100 dark:border-slate-800 text-slate-800 dark:text-slate-200'
+                : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200/70 dark:border-slate-800 text-slate-800 dark:text-slate-200'
             }`}>
               <span className="text-[11px] font-semibold opacity-75 uppercase tracking-wider block mb-1">
                 Prazo de Entrega
@@ -280,27 +308,21 @@ export const DemandDetailModal: React.FC<DemandDetailModalProps> = ({
         </div>
 
         {/* Footer actions with prominent "Fechar Janela" and tools */}
-        <div className="p-4 sm:p-5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-850 flex flex-wrap items-center justify-between gap-3">
+        <div className="p-4 sm:p-5 border-t border-slate-200 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-850 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <button
-              onClick={handleCopyWhatsApp}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 transition shadow-xs"
-            >
-              <Share2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span>Copiar para WhatsApp</span>
-            </button>
-
-            <button
+              type="button"
               onClick={handleEdit}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700 transition"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700 transition cursor-pointer"
             >
               <Edit3 className="w-3.5 h-3.5 text-slate-500" />
-              <span>Editar</span>
+              <span>Editar Demanda</span>
             </button>
 
             <button
+              type="button"
               onClick={handleDelete}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition cursor-pointer"
             >
               <Trash2 className="w-3.5 h-3.5" />
               <span>Excluir</span>
@@ -308,10 +330,12 @@ export const DemandDetailModal: React.FC<DemandDetailModalProps> = ({
           </div>
 
           <button
+            type="button"
             onClick={onClose}
-            className="px-5 py-2 rounded-xl text-xs font-bold bg-slate-900 text-white dark:bg-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-100 transition shadow-sm ml-auto"
+            className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-bold bg-slate-900 text-white dark:bg-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-100 active:scale-95 transition shadow-sm ml-auto cursor-pointer"
           >
-            Fechar Janela
+            <X className="w-4 h-4 stroke-[2.5]" />
+            <span>Fechar Janela</span>
           </button>
         </div>
       </div>

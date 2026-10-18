@@ -3,7 +3,6 @@ import {
   ExternalLink, 
   Clock, 
   AlertTriangle, 
-  Share2, 
   Edit3, 
   Trash2, 
   ChevronRight, 
@@ -28,7 +27,6 @@ interface KanbanBoardProps {
   onUpdateStatus: (id: string, newStatus: DemandStatus) => void;
   onEditDemand: (demand: Demand) => void;
   onDeleteDemand: (id: string) => void;
-  onCopyWhatsAppSingle: (demand: Demand) => void;
   onViewDemand: (demand: Demand) => void;
 }
 
@@ -84,7 +82,6 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   onUpdateStatus,
   onEditDemand,
   onDeleteDemand,
-  onCopyWhatsAppSingle,
   onViewDemand,
 }) => {
   const memberMap = new Map(members.map(m => [m.id, m]));
@@ -151,12 +148,12 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                     <div
                       key={demand.id}
                       onClick={() => onViewDemand(demand)}
-                      className={`group relative bg-white dark:bg-slate-900 rounded-xl p-3.5 border transition-all duration-200 shadow-xs hover:shadow-md cursor-pointer ${
+                      className={`group relative bg-white dark:bg-slate-900 rounded-xl p-3.5 border transition-all duration-200 shadow-xs hover:shadow-lg cursor-pointer select-none ${
                         deadline.status === 'overdue' && demand.status !== 'Concluído'
                           ? 'border-red-300 dark:border-red-900/60 ring-1 ring-red-400/30'
                           : deadline.status === 'due-soon' && demand.status !== 'Concluído'
                           ? 'border-amber-300 dark:border-amber-900/60'
-                          : 'border-slate-200/90 dark:border-slate-800 hover:border-sky-400 dark:hover:border-sky-500'
+                          : 'border-slate-200/90 dark:border-slate-800 hover:border-sky-500 dark:hover:border-sky-400'
                       }`}
                     >
                       {/* Top Badges: Category & Priority */}
@@ -174,17 +171,26 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                         </div>
                       </div>
 
-                      {/* Clickable Title with Hover & Open Hint */}
-                      <div className="flex items-start justify-between gap-1 mb-1.5">
-                        <h4 
-                          className="text-sm font-semibold text-slate-900 dark:text-slate-100 leading-snug group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors"
-                          title="Clique para abrir detalhes completos da demanda em uma janela"
+                      {/* Explicit Clickable Title Button with Hover & Abrir Janela Action */}
+                      <div className="mb-2">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onViewDemand(demand);
+                          }}
+                          className="w-full text-left font-bold text-slate-900 dark:text-slate-100 text-sm leading-snug group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors cursor-pointer flex items-start justify-between gap-2 focus:outline-none"
+                          title="Clique para abrir esta demanda em uma janela completa"
                         >
-                          {demand.title}
-                        </h4>
-                        <span className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 text-sky-600 dark:text-sky-400 shrink-0" title="Abrir janela">
-                          <Maximize2 className="w-3.5 h-3.5" />
-                        </span>
+                          <span className="flex-1 hover:underline">{demand.title}</span>
+                          <span 
+                            className="inline-flex items-center gap-1 text-[11px] font-bold text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/80 px-2 py-0.5 rounded-md border border-sky-200 dark:border-sky-800 shrink-0 group-hover:bg-sky-600 group-hover:text-white transition-all shadow-2xs"
+                            title="Abrir detalhes em uma janela"
+                          >
+                            <Maximize2 className="w-3 h-3 stroke-[2.5]" />
+                            <span>Abrir</span>
+                          </span>
+                        </button>
                       </div>
 
                       {/* Briefing / Description */}
@@ -264,7 +270,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                         )}
                       </div>
 
-                      {/* Card Actions Footer: Quick Move + WhatsApp + Edit/Delete */}
+                      {/* Card Actions Footer: Quick Move + Edit/Delete */}
                       <div 
                         className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-1 text-xs"
                         onClick={e => e.stopPropagation()}
@@ -273,8 +279,9 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                         <div className="flex items-center gap-1">
                           {prevStatus && (
                             <button
+                              type="button"
                               onClick={() => onUpdateStatus(demand.id, prevStatus)}
-                              className="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                              className="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
                               title={`Voltar para "${prevStatus}"`}
                             >
                               <ChevronLeft className="w-3.5 h-3.5" />
@@ -295,8 +302,9 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
                           {nextStatus && (
                             <button
+                              type="button"
                               onClick={() => onUpdateStatus(demand.id, nextStatus)}
-                              className="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                              className="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
                               title={`Avançar para "${nextStatus}"`}
                             >
                               <ChevronRight className="w-3.5 h-3.5" />
@@ -307,22 +315,17 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                         {/* Action buttons */}
                         <div className="flex items-center gap-1">
                           <button
-                            onClick={() => onCopyWhatsAppSingle(demand)}
-                            className="p-1.5 rounded-md text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 transition"
-                            title="Copiar texto desta demanda para o WhatsApp"
-                          >
-                            <Share2 className="w-3.5 h-3.5" />
-                          </button>
-                          <button
+                            type="button"
                             onClick={() => onEditDemand(demand)}
-                            className="p-1.5 rounded-md text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                            className="p-1.5 rounded-md text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
                             title="Editar demanda"
                           >
                             <Edit3 className="w-3.5 h-3.5" />
                           </button>
                           <button
+                            type="button"
                             onClick={() => onDeleteDemand(demand.id)}
-                            className="p-1.5 rounded-md text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition"
+                            className="p-1.5 rounded-md text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition cursor-pointer"
                             title="Excluir demanda"
                           >
                             <Trash2 className="w-3.5 h-3.5" />

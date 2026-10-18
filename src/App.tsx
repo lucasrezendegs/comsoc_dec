@@ -25,7 +25,6 @@ import {
   upsertMember 
 } from './services/storage';
 import { getSupabaseClient, testSupabaseConnection } from './services/supabaseClient';
-import { generateBatchWhatsAppReport, generateSingleDemandWhatsAppText } from './utils/whatsappExport';
 import { analyzeDeadline } from './utils/dateUtils';
 
 function AppContent() {
@@ -266,20 +265,6 @@ function AppContent() {
     }
   };
 
-  // WhatsApp Single & Batch Copy Handlers
-  const handleCopyWhatsAppSingle = (demand: Demand) => {
-    const member = members.find(m => m.id === demand.assignee_id);
-    const text = generateSingleDemandWhatsAppText(demand, member);
-    navigator.clipboard.writeText(text);
-    showToast('Demanda copiada para o WhatsApp!', 'success');
-  };
-
-  const handleCopyWhatsAppBatch = () => {
-    const text = generateBatchWhatsAppReport(filteredDemands, members);
-    navigator.clipboard.writeText(text);
-    showToast(`Relatório com ${filteredDemands.length} demandas copiado para o WhatsApp!`, 'success');
-  };
-
   const activeDemandsCount = demands.filter(d => d.status !== 'Concluído').length;
 
   return (
@@ -328,7 +313,6 @@ function AppContent() {
               onClearFilters={handleClearFilters}
               hasActiveFilters={hasActiveFilters}
               members={members}
-              onCopyWhatsApp={handleCopyWhatsAppBatch}
               totalFilteredCount={filteredDemands.length}
             />
 
@@ -340,7 +324,6 @@ function AppContent() {
                 onUpdateStatus={handleUpdateStatus}
                 onEditDemand={handleEditDemand}
                 onDeleteDemand={handleDeleteDemand}
-                onCopyWhatsAppSingle={handleCopyWhatsAppSingle}
                 onViewDemand={handleViewDemand}
               />
             ) : (
@@ -350,7 +333,6 @@ function AppContent() {
                 onUpdateStatus={handleUpdateStatus}
                 onEditDemand={handleEditDemand}
                 onDeleteDemand={handleDeleteDemand}
-                onCopyWhatsAppSingle={handleCopyWhatsAppSingle}
                 onViewDemand={handleViewDemand}
               />
             )}
@@ -368,7 +350,6 @@ function AppContent() {
               onEditDemand={handleEditDemand}
               onDeleteDemand={handleDeleteDemand}
               onNewDemandForMember={memberId => handleOpenNewDemand(memberId)}
-              onCopyWhatsAppSingle={handleCopyWhatsAppSingle}
               onViewDemand={handleViewDemand}
             />
           </div>

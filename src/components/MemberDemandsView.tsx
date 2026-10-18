@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
   User, 
-  Share2, 
   CheckCircle2, 
   Loader2, 
   CircleDashed, 
@@ -11,19 +10,18 @@ import {
   ExternalLink, 
   Edit3, 
   Trash2, 
-  Sparkles,
-  Send,
-  Plus
+  Send, 
+  Plus,
+  Maximize2
 } from 'lucide-react';
 import { Demand, DemandStatus, TeamMember } from '../types';
-import { analyzeDeadline, formatBrazilianDate } from '../utils/dateUtils';
+import { analyzeDeadline } from '../utils/dateUtils';
 import { 
   getCategoryIcon, 
   getCategoryBadgeClass, 
   getPriorityBadge, 
   getInitials 
 } from '../utils/styleHelpers';
-import { generateBatchWhatsAppReport } from '../utils/whatsappExport';
 import { useToast } from './Toast';
 
 interface MemberDemandsViewProps {
@@ -34,7 +32,6 @@ interface MemberDemandsViewProps {
   onEditDemand: (demand: Demand) => void;
   onDeleteDemand: (id: string) => void;
   onNewDemandForMember: (memberId: string) => void;
-  onCopyWhatsAppSingle: (demand: Demand) => void;
   onViewDemand: (demand: Demand) => void;
 }
 
@@ -46,7 +43,6 @@ export const MemberDemandsView: React.FC<MemberDemandsViewProps> = ({
   onEditDemand,
   onDeleteDemand,
   onNewDemandForMember,
-  onCopyWhatsAppSingle,
   onViewDemand,
 }) => {
   const [selectedMemberId, setSelectedMemberId] = useState<string>(activeProfileId || members[0]?.id || '');
@@ -96,17 +92,6 @@ export const MemberDemandsView: React.FC<MemberDemandsViewProps> = ({
     return timeA - timeB;
   });
 
-  const handleCopyMemberReport = () => {
-    if (!selectedMember) return;
-    const text = generateBatchWhatsAppReport(
-      memberDemands,
-      members,
-      `DEMANDAS DE ${selectedMember.name.toUpperCase()} (${selectedMember.role})`
-    );
-    navigator.clipboard.writeText(text);
-    showToast(`Relatório de ${selectedMember.name.split(' ')[0]} copiado para o WhatsApp!`, 'success');
-  };
-
   if (!selectedMember) {
     return (
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 text-center text-slate-500">
@@ -137,8 +122,9 @@ export const MemberDemandsView: React.FC<MemberDemandsViewProps> = ({
             return (
               <button
                 key={member.id}
+                type="button"
                 onClick={() => setSelectedMemberId(member.id)}
-                className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border text-left shrink-0 transition-all ${
+                className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border text-left shrink-0 transition-all cursor-pointer ${
                   isSelected
                     ? 'bg-slate-900 text-white dark:bg-slate-800 dark:text-slate-100 border-slate-900 dark:border-sky-500/80 shadow-md ring-2 ring-sky-500/30'
                     : 'bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
@@ -219,16 +205,9 @@ export const MemberDemandsView: React.FC<MemberDemandsViewProps> = ({
           {/* Action CTAs */}
           <div className="flex items-center gap-2 self-start md:self-center">
             <button
-              onClick={handleCopyMemberReport}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white transition shadow-sm"
-              title="Copiar relatório formatado para o WhatsApp"
-            >
-              <Share2 className="w-4 h-4" />
-              <span>WhatsApp de {selectedMember.name.split(' ')[0]}</span>
-            </button>
-            <button
+              type="button"
               onClick={() => onNewDemandForMember(selectedMember.id)}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-sky-600 hover:bg-sky-500 active:scale-95 text-white transition shadow-sm"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-sky-600 hover:bg-sky-500 active:scale-95 text-white transition shadow-sm cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>+ Atribuir Demanda</span>
@@ -296,7 +275,7 @@ export const MemberDemandsView: React.FC<MemberDemandsViewProps> = ({
             Demandas de {selectedMember.name} ({memberDemands.length})
           </h3>
           <span className="text-xs text-slate-500 dark:text-slate-400">
-            Organizadas por urgência de prazo
+            Clique em qualquer demanda para abrir a janela completa
           </span>
         </div>
 
@@ -312,8 +291,9 @@ export const MemberDemandsView: React.FC<MemberDemandsViewProps> = ({
               Nenhuma demanda atribuída no momento. Clique no botão abaixo para adicionar uma tarefa para este integrante.
             </p>
             <button
+              type="button"
               onClick={() => onNewDemandForMember(selectedMember.id)}
-              className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-sky-600 hover:bg-sky-500 text-white transition"
+              className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-sky-600 hover:bg-sky-500 text-white transition cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>Adicionar Demanda</span>
@@ -329,12 +309,12 @@ export const MemberDemandsView: React.FC<MemberDemandsViewProps> = ({
                 <div
                   key={demand.id}
                   onClick={() => onViewDemand(demand)}
-                  className={`bg-white dark:bg-slate-900 rounded-2xl p-4 border transition-all duration-200 shadow-xs hover:shadow-md cursor-pointer group ${
+                  className={`bg-white dark:bg-slate-900 rounded-2xl p-4 border transition-all duration-200 shadow-xs hover:shadow-lg cursor-pointer group select-none ${
                     deadline.status === 'overdue' && demand.status !== 'Concluído'
                       ? 'border-red-300 dark:border-red-900/60 ring-1 ring-red-400/30'
                       : deadline.status === 'due-soon' && demand.status !== 'Concluído'
                       ? 'border-amber-300 dark:border-amber-900/60'
-                      : 'border-slate-200/90 dark:border-slate-800 hover:border-sky-400 dark:hover:border-sky-500'
+                      : 'border-slate-200/90 dark:border-slate-800 hover:border-sky-500 dark:hover:border-sky-400'
                   }`}
                 >
                   {/* Top tags */}
@@ -350,10 +330,27 @@ export const MemberDemandsView: React.FC<MemberDemandsViewProps> = ({
                     </span>
                   </div>
 
-                  {/* Title */}
-                  <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-1.5 leading-snug group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">
-                    {demand.title}
-                  </h4>
+                  {/* Explicit Clickable Title Button */}
+                  <div className="mb-1.5">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onViewDemand(demand);
+                      }}
+                      className="w-full text-left font-bold text-slate-900 dark:text-slate-100 text-sm leading-snug group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors cursor-pointer flex items-start justify-between gap-2 focus:outline-none"
+                      title="Clique para abrir detalhes completos desta demanda em uma janela"
+                    >
+                      <span className="flex-1 hover:underline">{demand.title}</span>
+                      <span 
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/80 px-2 py-0.5 rounded-md border border-sky-200 dark:border-sky-800 shrink-0 group-hover:bg-sky-600 group-hover:text-white transition-all shadow-2xs"
+                        title="Abrir detalhes em uma janela"
+                      >
+                        <Maximize2 className="w-3 h-3 stroke-[2.5]" />
+                        <span>Abrir</span>
+                      </span>
+                    </button>
+                  </div>
 
                   {/* Briefing */}
                   {demand.description && (
@@ -422,29 +419,32 @@ export const MemberDemandsView: React.FC<MemberDemandsViewProps> = ({
                           href={demand.files_link}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="p-1.5 rounded-lg text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950/50 transition"
+                          className="p-1.5 rounded-lg text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950/50 transition cursor-pointer"
                           title="Abrir arquivos de entrega"
                         >
                           <ExternalLink className="w-4 h-4" />
                         </a>
                       )}
                       <button
-                        onClick={() => onCopyWhatsAppSingle(demand)}
-                        className="p-1.5 rounded-lg text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 transition"
-                        title="Copiar texto para WhatsApp"
+                        type="button"
+                        onClick={() => onViewDemand(demand)}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950/50 transition cursor-pointer"
+                        title="Abrir Janela da Demanda"
                       >
-                        <Share2 className="w-4 h-4" />
+                        <Maximize2 className="w-4 h-4" />
                       </button>
                       <button
+                        type="button"
                         onClick={() => onEditDemand(demand)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
                         title="Editar"
                       >
                         <Edit3 className="w-4 h-4" />
                       </button>
                       <button
+                        type="button"
                         onClick={() => onDeleteDemand(demand.id)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition"
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition cursor-pointer"
                         title="Excluir"
                       >
                         <Trash2 className="w-4 h-4" />
