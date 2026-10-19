@@ -70,9 +70,15 @@ export const ListView: React.FC<ListViewProps> = ({
   const sortedDemands = [...demands].sort((a, b) => {
     let diff = 0;
     if (sortField === 'due_date') {
-      const aTime = new Date(a.due_date).getTime() || 0;
-      const bTime = new Date(b.due_date).getTime() || 0;
-      diff = aTime - bTime;
+      const getTimestamp = (dateStr?: string) => {
+        if (!dateStr) return sortAsc ? Infinity : -Infinity;
+        if (!dateStr.includes('T')) {
+          const parts = dateStr.split('-').map(Number);
+          return new Date(parts[0], parts[1] - 1, parts[2], 23, 59, 59).getTime();
+        }
+        return new Date(dateStr).getTime() || (sortAsc ? Infinity : -Infinity);
+      };
+      diff = getTimestamp(a.due_date) - getTimestamp(b.due_date);
     } else if (sortField === 'priority') {
       diff = priorityWeights[b.priority] - priorityWeights[a.priority];
     } else if (sortField === 'status') {

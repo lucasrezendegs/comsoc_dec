@@ -31,7 +31,7 @@ export interface Demand {
   assignee_id: string; // Responsável principal
   additional_assignees?: DemandAssignee[]; // Responsáveis adicionais e suas atribuições
   requester: string; // "Para quem entregar / Solicitante"
-  due_date: string; // ISO string YYYY-MM-DDTHH:mm
+  due_date: string; // ISO string YYYY-MM-DDTHH:mm, YYYY-MM-DD (sem horário), ou '' (sem data)
   category: DemandCategory;
   priority: DemandPriority;
   status: DemandStatus;

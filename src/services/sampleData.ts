@@ -144,7 +144,7 @@ export function getInitialDemands(): Demand[] {
       description: 'Converter cores para CMYK, aplicar sangrias de 3mm, exportar PDF/X-1a em alta resolução e enviar para a gráfica licitada.',
       assignee_id: 'mem_2',
       requester: 'Divisão de Recursos Humanos',
-      due_date: getRelativeDateISO(96), // Vence em 4 dias
+      due_date: getRelativeDateISO(96).split('T')[0], // Com data definida, mas sem horário (dia todo)
       category: 'Impressão / Material',
       priority: 'Média',
       status: 'A Fazer',
@@ -157,7 +157,7 @@ export function getInitialDemands(): Demand[] {
       description: 'Compilado dinâmico de 60 segundos com os melhores momentos das atividades da instituição no último mês para TikTok e Instagram.',
       assignee_id: 'mem_3',
       requester: 'Coordenação de Redes Sociais',
-      due_date: getRelativeDateISO(120), // Vence em 5 dias
+      due_date: '', // Sem data definida (demanda em aberto sem prazo fixado)
       category: 'Vídeo / Edição',
       priority: 'Baixa',
       status: 'A Fazer',

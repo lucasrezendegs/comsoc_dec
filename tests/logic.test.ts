@@ -39,10 +39,37 @@ describe('dateUtils logic tests', () => {
     assert.strictEqual(result.badgeLabel, 'No prazo');
   });
 
-  test('formatBrazilianDate formats properly', () => {
+  test('formatBrazilianDate formats properly with time', () => {
     const formatted = formatBrazilianDate('2026-10-25T14:30:00', true);
     assert.ok(formatted.includes('25/10/2026'));
     assert.ok(formatted.includes('14:30'));
+  });
+
+  test('formatBrazilianDate formats properly without time when date-only (sem horário)', () => {
+    const formatted = formatBrazilianDate('2026-10-25', true);
+    assert.strictEqual(formatted, '25/10/2026');
+    assert.ok(!formatted.includes('às'));
+  });
+
+  test('formatBrazilianDate formats properly when empty (sem data definida)', () => {
+    const formatted = formatBrazilianDate('', true);
+    assert.strictEqual(formatted, 'Sem data definida');
+  });
+
+  test('analyzeDeadline returns sem prazo when dueDate is empty', () => {
+    const result = analyzeDeadline('', 'A Fazer');
+    assert.strictEqual(result.status, 'on-track');
+    assert.strictEqual(result.badgeLabel, 'Sem prazo');
+    assert.strictEqual(result.relativeText, 'Sem data definida');
+    assert.strictEqual(result.isUrgentNotice, false);
+  });
+
+  test('analyzeDeadline handles date-only deadline expiring at end of day', () => {
+    const futureDate = '2029-12-31';
+    const result = analyzeDeadline(futureDate, 'A Fazer');
+    assert.strictEqual(result.status, 'on-track');
+    assert.strictEqual(result.badgeLabel, 'No prazo');
+    assert.strictEqual(result.formattedDate, '31/12/2029');
   });
 });
 

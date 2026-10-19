@@ -55,23 +55,23 @@ export const DemandModal: React.FC<DemandModalProps> = ({
   const [assigneeId, setAssigneeId] = useState('');
   const [additionalAssignees, setAdditionalAssignees] = useState<DemandAssignee[]>([]);
   const [requester, setRequester] = useState('');
-  const [dueDate, setDueDate] = useState('');
+  const [hasNoDate, setHasNoDate] = useState(false);
+  const [hasNoTime, setHasNoTime] = useState(false);
+  const [dateValue, setDateValue] = useState('');
+  const [timeValue, setTimeValue] = useState('');
   const [category, setCategory] = useState<DemandCategory>('Design / Arte');
   const [priority, setPriority] = useState<DemandPriority>('Média');
   const [status, setStatus] = useState<DemandStatus>('A Fazer');
   const [filesLink, setFilesLink] = useState('');
 
-  // Helper to format date for datetime-local input
-  const getSuggestedDateTime = (offsetHours: number) => {
+  // Helper to format date offset in YYYY-MM-DD
+  const getOffsetDateStr = (offsetDays: number) => {
     const d = new Date();
-    d.setHours(d.getHours() + offsetHours);
-    d.setMinutes(0);
-    d.setSeconds(0);
+    d.setDate(d.getDate() + offsetDays);
     const yyyy = d.getFullYear();
     const mm = String(d.getMonth() + 1).padStart(2, '0');
     const dd = String(d.getDate()).padStart(2, '0');
-    const hh = String(d.getHours()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}T${hh}:00`;
+    return `${yyyy}-${mm}-${dd}`;
   };
 
   useEffect(() => {
@@ -81,24 +81,83 @@ export const DemandModal: React.FC<DemandModalProps> = ({
       setAssigneeId(editingDemand.assignee_id || '');
       setAdditionalAssignees(editingDemand.additional_assignees ? [...editingDemand.additional_assignees] : []);
       setRequester(editingDemand.requester || '');
-      setDueDate(editingDemand.due_date || '');
       setCategory(editingDemand.category || 'Design / Arte');
       setPriority(editingDemand.priority || 'Média');
       setStatus(editingDemand.status || 'A Fazer');
       setFilesLink(editingDemand.files_link || '');
+
+      // Parse existing due_date
+      const rawDue = (editingDemand.due_date || '').trim();
+      if (!rawDue) {
+        setHasNoDate(true);
+        setHasNoTime(true);
+        setDateValue('');
+        setTimeValue('');
+      } else if (rawDue.includes('T')) {
+        const [dPart, tPart] = rawDue.split('T');
+        setHasNoDate(false);
+        setDateValue(dPart);
+        if (tPart && tPart.trim()) {
+          setHasNoTime(false);
+          setTimeValue(tPart.slice(0, 5));
+        } else {
+          setHasNoTime(true);
+          setTimeValue('');
+        }
+      } else {
+        // Date only (no time)
+        setHasNoDate(false);
+        setHasNoTime(true);
+        setDateValue(rawDue.slice(0, 10));
+        setTimeValue('');
+      }
     } else {
       setTitle('');
       setDescription('');
       setAssigneeId(defaultAssigneeId || members[0]?.id || '');
       setAdditionalAssignees([]);
       setRequester('');
-      setDueDate(getSuggestedDateTime(24)); // Default to tomorrow
       setCategory('Design / Arte');
       setPriority('Média');
       setStatus('A Fazer');
       setFilesLink('');
+
+      // New demand defaults to tomorrow, 18:00
+      setHasNoDate(false);
+      setHasNoTime(false);
+      setDateValue(getOffsetDateStr(1));
+      setTimeValue('18:00');
     }
   }, [editingDemand, isOpen, defaultAssigneeId, members]);
+
+  const handleToggleNoDate = (checked: boolean) => {
+    setHasNoDate(checked);
+    if (checked) {
+      // If no date, automatically has no time
+      setHasNoTime(true);
+    } else {
+      setHasNoTime(false);
+      if (!dateValue) {
+        setDateValue(getOffsetDateStr(1));
+      }
+      if (!timeValue) {
+        setTimeValue('18:00');
+      }
+    }
+  };
+
+  const handleToggleNoTime = (checked: boolean) => {
+    if (hasNoDate) return;
+    setHasNoTime(checked);
+    if (!checked && !timeValue) {
+      setTimeValue('18:00');
+    }
+  };
+
+  const applyQuickDate = (offsetDays: number) => {
+    setDateValue(getOffsetDateStr(offsetDays));
+    setHasNoDate(false);
+  };
 
   const handleAddAdditionalAssignee = () => {
     const usedIds = new Set([assigneeId, ...additionalAssignees.map(a => a.member_id)]);
@@ -146,9 +205,18 @@ export const DemandModal: React.FC<DemandModalProps> = ({
       return;
     }
 
-    if (!dueDate) {
-      showToast('Informe o Prazo de Entrega.', 'error');
-      return;
+    // Calculate final due_date
+    let finalDueDate = '';
+    if (!hasNoDate) {
+      if (!dateValue.trim()) {
+        showToast('Informe a Data de Entrega ou marque "Sem data definida".', 'error');
+        return;
+      }
+      if (hasNoTime || !timeValue.trim()) {
+        finalDueDate = dateValue.trim();
+      } else {
+        finalDueDate = `${dateValue.trim()}T${timeValue.trim()}`;
+      }
     }
 
     const cleanedAdditional: DemandAssignee[] = additionalAssignees
@@ -165,7 +233,7 @@ export const DemandModal: React.FC<DemandModalProps> = ({
       assignee_id: assigneeId,
       additional_assignees: cleanedAdditional.length > 0 ? cleanedAdditional : undefined,
       requester: requester.trim(),
-      due_date: dueDate,
+      due_date: finalDueDate,
       category,
       priority,
       status,
@@ -370,44 +438,155 @@ export const DemandModal: React.FC<DemandModalProps> = ({
             )}
           </div>
 
-          {/* Prazo de Entrega */}
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
-                <span>Prazo de Entrega (Data e Hora) *</span>
-              </label>
+          {/* Prazo de Entrega: Data e Horário Separados + Opções */}
+          <div className="p-4 rounded-2xl bg-slate-50/90 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <label className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 text-xs">
+                  <Calendar className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+                  <span>Prazo de Entrega</span>
+                </label>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Defina a data e o horário limite de conclusão.
+                </p>
+              </div>
+
+              {/* Atalhos Rápidos de Data */}
               <div className="flex items-center gap-1">
                 <button
                   type="button"
-                  onClick={() => setDueDate(getSuggestedDateTime(6))}
-                  className="text-[10px] px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 transition"
+                  onClick={() => applyQuickDate(0)}
+                  className="text-[10px] px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-sky-50 dark:hover:bg-slate-700 hover:border-sky-300 transition cursor-pointer"
+                  title="Definir prazo para hoje"
                 >
                   Hoje
                 </button>
                 <button
                   type="button"
-                  onClick={() => setDueDate(getSuggestedDateTime(24))}
-                  className="text-[10px] px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 transition"
+                  onClick={() => applyQuickDate(1)}
+                  className="text-[10px] px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-sky-50 dark:hover:bg-slate-700 hover:border-sky-300 transition cursor-pointer"
+                  title="Definir prazo para amanhã"
                 >
                   Amanhã
                 </button>
                 <button
                   type="button"
-                  onClick={() => setDueDate(getSuggestedDateTime(72))}
-                  className="text-[10px] px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 transition"
+                  onClick={() => applyQuickDate(3)}
+                  className="text-[10px] px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-sky-50 dark:hover:bg-slate-700 hover:border-sky-300 transition cursor-pointer"
+                  title="Definir prazo para daqui a 3 dias"
                 >
                   Em 3 dias
                 </button>
+                <button
+                  type="button"
+                  onClick={() => applyQuickDate(7)}
+                  className="text-[10px] px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-sky-50 dark:hover:bg-slate-700 hover:border-sky-300 transition cursor-pointer"
+                  title="Definir prazo para daqui a 1 semana"
+                >
+                  Em 1 semana
+                </button>
               </div>
             </div>
-            <input
-              type="datetime-local"
-              required
-              value={dueDate}
-              onChange={e => setDueDate(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500"
-            />
+
+            {/* Inputs de Data e Horário em 2 Colunas */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Coluna 1: Data de Entrega */}
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
+                  <span>Data de Entrega</span>
+                  {hasNoDate && (
+                    <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                      (Sem data definida)
+                    </span>
+                  )}
+                </label>
+                <input
+                  type="date"
+                  disabled={hasNoDate}
+                  value={hasNoDate ? '' : dateValue}
+                  onChange={e => {
+                    setDateValue(e.target.value);
+                    if (hasNoDate) setHasNoDate(false);
+                  }}
+                  className={`w-full px-3.5 py-2 rounded-xl border text-xs transition ${
+                    hasNoDate
+                      ? 'bg-slate-100 dark:bg-slate-800/40 text-slate-400 border-slate-200 dark:border-slate-700/50 cursor-not-allowed opacity-60'
+                      : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500'
+                  }`}
+                />
+              </div>
+
+              {/* Coluna 2: Horário Limite */}
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
+                  <span className="flex items-center gap-1">
+                    <Clock className="w-3.5 h-3.5 text-slate-400" />
+                    <span>Horário Limite</span>
+                  </span>
+                  {(hasNoTime || hasNoDate) && (
+                    <span className="text-[10px] text-slate-400 font-medium">
+                      {hasNoDate ? '(Indisponível sem data)' : '(Dia inteiro / Sem horário)'}
+                    </span>
+                  )}
+                </label>
+                <input
+                  type="time"
+                  disabled={hasNoTime || hasNoDate}
+                  value={hasNoTime || hasNoDate ? '' : timeValue}
+                  onChange={e => {
+                    setTimeValue(e.target.value);
+                    if (hasNoTime) setHasNoTime(false);
+                  }}
+                  className={`w-full px-3.5 py-2 rounded-xl border text-xs transition ${
+                    hasNoTime || hasNoDate
+                      ? 'bg-slate-100 dark:bg-slate-800/40 text-slate-400 border-slate-200 dark:border-slate-700/50 cursor-not-allowed opacity-60'
+                      : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500'
+                  }`}
+                />
+              </div>
+            </div>
+
+            {/* Opções (Checkboxes) */}
+            <div className="pt-2.5 flex flex-col sm:flex-row sm:items-center gap-4 text-xs border-t border-slate-200/70 dark:border-slate-700/70">
+              {/* Opção 1: Sem data definida */}
+              <label className="flex items-center gap-2 cursor-pointer select-none group">
+                <input
+                  type="checkbox"
+                  checked={hasNoDate}
+                  onChange={e => handleToggleNoDate(e.target.checked)}
+                  className="w-4 h-4 rounded text-sky-600 focus:ring-sky-500 border-slate-300 dark:border-slate-600 dark:bg-slate-800 cursor-pointer"
+                />
+                <div>
+                  <span className="text-slate-800 dark:text-slate-200 font-semibold group-hover:text-sky-600 dark:group-hover:text-sky-400 transition">
+                    Sem data definida
+                  </span>
+                  <span className="text-[11px] text-slate-400 block sm:inline sm:ml-1">
+                    (automaticamente não tem horário definido)
+                  </span>
+                </div>
+              </label>
+
+              {/* Opção 2: Sem horário definido */}
+              <label className={`flex items-center gap-2 select-none group ${
+                hasNoDate ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
+              }`}>
+                <input
+                  type="checkbox"
+                  disabled={hasNoDate}
+                  checked={hasNoTime || hasNoDate}
+                  onChange={e => handleToggleNoTime(e.target.checked)}
+                  className="w-4 h-4 rounded text-sky-600 focus:ring-sky-500 border-slate-300 dark:border-slate-600 dark:bg-slate-800 cursor-pointer disabled:cursor-not-allowed"
+                />
+                <div>
+                  <span className="text-slate-800 dark:text-slate-200 font-semibold group-hover:text-sky-600 dark:group-hover:text-sky-400 transition">
+                    Sem horário definido
+                  </span>
+                  <span className="text-[11px] text-slate-400 block sm:inline sm:ml-1">
+                    (pode ter data, mas para o dia inteiro)
+                  </span>
+                </div>
+              </label>
+            </div>
           </div>
 
           {/* Categoria, Prioridade e Status em 3 colunas */}

@@ -1,4 +1,5 @@
 import { Demand, DemandCategory, TeamMember } from '../types';
+import { formatBrazilianDate } from './dateUtils';
 
 export type ReportPeriodKey = '30_days' | '60_days' | '90_days' | '1_year' | 'all_time' | 'custom';
 
@@ -101,7 +102,24 @@ export function getDemandCompletionDate(demand: Demand): Date {
  */
 export function analyzeDemandCompletion(demand: Demand): DemandCompletionStatus {
   const completionDate = getDemandCompletionDate(demand);
-  const dueDate = new Date(demand.due_date);
+  
+  if (!demand.due_date || demand.due_date.trim() === '') {
+    return {
+      isOnTime: true,
+      statusLabel: 'No Prazo',
+      differenceHours: 0,
+      differenceFormatted: 'Sem prazo estipulado',
+      completionDate: completionDate.toISOString(),
+    };
+  }
+
+  let dueDate: Date;
+  if (!demand.due_date.includes('T')) {
+    const parts = demand.due_date.split('-').map(Number);
+    dueDate = new Date(parts[0], parts[1] - 1, parts[2], 23, 59, 59, 999);
+  } else {
+    dueDate = new Date(demand.due_date);
+  }
   
   const diffMs = completionDate.getTime() - dueDate.getTime();
   const diffHours = Math.round(diffMs / (1000 * 60 * 60));
@@ -470,7 +488,7 @@ export function generateReportCSV(stats: OverallReportStats, members: TeamMember
         assigneeName += ` (+ ${coNames})`;
       }
     }
-    const dueDateFormatted = new Date(d.due_date).toLocaleString('pt-BR');
+    const dueDateFormatted = d.due_date ? formatBrazilianDate(d.due_date) : 'Sem data definida';
     const compDateFormatted = new Date(d.completionStatus.completionDate).toLocaleString('pt-BR');
 
     rows.push([

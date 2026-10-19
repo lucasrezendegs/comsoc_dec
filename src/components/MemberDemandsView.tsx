@@ -94,9 +94,15 @@ export const MemberDemandsView: React.FC<MemberDemandsViewProps> = ({
     const diffUrgency = urgencyScore(analysisB.status) - urgencyScore(analysisA.status);
     if (diffUrgency !== 0) return diffUrgency;
 
-    const timeA = new Date(a.due_date).getTime() || 0;
-    const timeB = new Date(b.due_date).getTime() || 0;
-    return timeA - timeB;
+    const getTimestamp = (dateStr?: string) => {
+      if (!dateStr) return Infinity;
+      if (!dateStr.includes('T')) {
+        const parts = dateStr.split('-').map(Number);
+        return new Date(parts[0], parts[1] - 1, parts[2], 23, 59, 59).getTime();
+      }
+      return new Date(dateStr).getTime() || Infinity;
+    };
+    return getTimestamp(a.due_date) - getTimestamp(b.due_date);
   });
 
   if (!selectedMember) {

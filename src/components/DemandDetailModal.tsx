@@ -260,10 +260,11 @@ export const DemandDetailModal: React.FC<DemandDetailModalProps> = ({
                 {deadline.status === 'overdue' && <AlertTriangle className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0" />}
                 {deadline.status === 'due-soon' && <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />}
                 {deadline.status === 'completed' && <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />}
+                {deadline.status === 'on-track' && <Calendar className="w-4 h-4 text-slate-500 shrink-0" />}
                 <span>{formatBrazilianDate(demand.due_date)}</span>
               </div>
               <span className="text-[11px] opacity-80 block mt-0.5">
-                {deadline.badgeLabel} • {deadline.relativeText}
+                {!demand.due_date ? 'Sem prazo estipulado' : `${deadline.badgeLabel} • ${deadline.relativeText}`}
               </span>
             </div>
           </div>

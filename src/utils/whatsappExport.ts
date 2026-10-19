@@ -25,9 +25,9 @@ export function generateSingleDemandWhatsAppText(
   const priorityTag = PRIORITY_EMOJIS[demand.priority] || demand.priority;
 
   let deadlineTag = `📅 *Prazo:* ${formatBrazilianDate(demand.due_date)}`;
-  if (deadlineAnalysis.status === 'overdue') {
+  if (demand.due_date && deadlineAnalysis.status === 'overdue') {
     deadlineTag += ' ⚠️ *(ATRASADO)*';
-  } else if (deadlineAnalysis.status === 'due-soon') {
+  } else if (demand.due_date && deadlineAnalysis.status === 'due-soon') {
     deadlineTag += ' ⏰ *(VENCE EM BREVE)*';
   }
 
@@ -98,11 +98,18 @@ export function generateBatchWhatsAppReport(
     lines.push('⚡ *DEMANDAS ATIVAS / EM ANDAMENTO:*');
     lines.push('');
 
-    // Sort active: overdue first, then by due date
+    // Sort active: overdue first, then by due date (unscheduled at the end)
+    const getTimestamp = (dateStr?: string) => {
+      if (!dateStr) return Infinity;
+      if (!dateStr.includes('T')) {
+        const parts = dateStr.split('-').map(Number);
+        return new Date(parts[0], parts[1] - 1, parts[2], 23, 59, 59).getTime();
+      }
+      return new Date(dateStr).getTime() || Infinity;
+    };
+
     const sortedActive = [...activeDemands].sort((a, b) => {
-      const aTime = new Date(a.due_date).getTime();
-      const bTime = new Date(b.due_date).getTime();
-      return aTime - bTime;
+      return getTimestamp(a.due_date) - getTimestamp(b.due_date);
     });
 
     sortedActive.forEach((d, index) => {
