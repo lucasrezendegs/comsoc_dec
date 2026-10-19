@@ -12,10 +12,12 @@ import {
   Trash2, 
   Send, 
   Plus,
-  Maximize2
+  Maximize2,
+  Users
 } from 'lucide-react';
 import { Demand, DemandStatus, TeamMember } from '../types';
 import { analyzeDeadline } from '../utils/dateUtils';
+import { isMemberAssignedToDemand } from '../utils/assigneeHelpers';
 import { 
   getCategoryIcon, 
   getCategoryBadgeClass, 
@@ -27,7 +29,8 @@ import { useToast } from './Toast';
 interface MemberDemandsViewProps {
   members: TeamMember[];
   demands: Demand[];
-  activeProfileId: string;
+  selectedMemberId?: string;
+  onSelectMemberId?: (id: string) => void;
   onUpdateStatus: (id: string, newStatus: DemandStatus) => void;
   onEditDemand: (demand: Demand) => void;
   onDeleteDemand: (id: string) => void;
@@ -38,29 +41,33 @@ interface MemberDemandsViewProps {
 export const MemberDemandsView: React.FC<MemberDemandsViewProps> = ({
   members,
   demands,
-  activeProfileId,
+  selectedMemberId: controlledSelectedMemberId,
+  onSelectMemberId,
   onUpdateStatus,
   onEditDemand,
   onDeleteDemand,
   onNewDemandForMember,
   onViewDemand,
 }) => {
-  const [selectedMemberId, setSelectedMemberId] = useState<string>(activeProfileId || members[0]?.id || '');
+  const [internalSelectedMemberId, setInternalSelectedMemberId] = useState<string>(members[0]?.id || '');
   const { showToast } = useToast();
 
-  // If activeProfileId changes and was the default, sync it
+  const selectedMemberId = controlledSelectedMemberId !== undefined ? controlledSelectedMemberId : internalSelectedMemberId;
+  const setSelectedMemberId = (id: string) => {
+    setInternalSelectedMemberId(id);
+    onSelectMemberId?.(id);
+  };
+
   useEffect(() => {
-    if (activeProfileId) {
-      setSelectedMemberId(activeProfileId);
-    } else if (members.length > 0 && !selectedMemberId) {
+    if (members.length > 0 && (!selectedMemberId || !members.some(m => m.id === selectedMemberId))) {
       setSelectedMemberId(members[0].id);
     }
-  }, [activeProfileId, members]);
+  }, [members, selectedMemberId]);
 
   const selectedMember = members.find(m => m.id === selectedMemberId) || members[0];
 
-  // All demands for the selected person
-  const memberDemands = demands.filter(d => d.assignee_id === selectedMember?.id);
+  // All demands for the selected person (primary or co-responsible)
+  const memberDemands = demands.filter(d => isMemberAssignedToDemand(d, selectedMember?.id));
 
   // Stats for the selected person
   const pendingDemands = memberDemands.filter(d => d.status === 'A Fazer');
@@ -114,9 +121,8 @@ export const MemberDemandsView: React.FC<MemberDemandsViewProps> = ({
         <div className="flex items-center gap-2.5 overflow-x-auto pb-1 scrollbar-thin">
           {members.map(member => {
             const isSelected = member.id === selectedMember.id;
-            const isMyProfile = member.id === activeProfileId;
             const memberActiveCount = demands.filter(
-              d => d.assignee_id === member.id && d.status !== 'Concluído'
+              d => isMemberAssignedToDemand(d, member.id) && d.status !== 'Concluído'
             ).length;
 
             return (
@@ -137,18 +143,9 @@ export const MemberDemandsView: React.FC<MemberDemandsViewProps> = ({
                   {getInitials(member.name)}
                 </div>
                 <div className="flex flex-col">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-semibold text-xs leading-none">
-                      {member.name.split(' ')[0]} {member.name.split(' ')[1] || ''}
-                    </span>
-                    {isMyProfile && (
-                      <span className={`text-[10px] px-1.5 py-0.2 rounded font-bold ${
-                        isSelected ? 'bg-sky-400 text-slate-950' : 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300'
-                      }`}>
-                        EU
-                      </span>
-                    )}
-                  </div>
+                  <span className="font-semibold text-xs leading-none">
+                    {member.name.split(' ')[0]} {member.name.split(' ')[1] || ''}
+                  </span>
                   <span className={`text-[11px] truncate max-w-[120px] mt-0.5 ${
                     isSelected ? 'text-slate-300 dark:text-slate-400' : 'text-slate-400'
                   }`}>
@@ -181,16 +178,9 @@ export const MemberDemandsView: React.FC<MemberDemandsViewProps> = ({
               {getInitials(selectedMember.name)}
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-xl font-bold text-white">
-                  {selectedMember.name}
-                </h2>
-                {selectedMember.id === activeProfileId && (
-                  <span className="px-2 py-0.5 text-xs font-bold bg-sky-500/30 text-sky-300 border border-sky-400/30 rounded-md">
-                    Seu Perfil Ativo
-                  </span>
-                )}
-              </div>
+              <h2 className="text-xl font-bold text-white">
+                {selectedMember.name}
+              </h2>
               <p className="text-slate-300 text-sm mt-0.5">
                 {selectedMember.role}
               </p>
@@ -358,6 +348,37 @@ export const MemberDemandsView: React.FC<MemberDemandsViewProps> = ({
                       {demand.description}
                     </p>
                   )}
+
+                  {/* Atribuição específica desta pessoa na demanda */}
+                  {demand.assignee_id !== selectedMember.id ? (
+                    <div className="mb-3 p-2.5 rounded-xl bg-indigo-50/90 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800/80">
+                      <div className="flex items-center justify-between text-[11px] font-bold text-indigo-700 dark:text-indigo-300 mb-1">
+                        <span className="flex items-center gap-1">
+                          <Users className="w-3.5 h-3.5" />
+                          <span>Você é Co-responsável</span>
+                        </span>
+                        <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-medium">
+                          Principal: {members.find(m => m.id === demand.assignee_id)?.name.split(' ')[0] || 'Outro'}
+                        </span>
+                      </div>
+                      <div className="text-xs text-indigo-950 dark:text-indigo-100 font-medium bg-white/80 dark:bg-slate-900/80 p-2 rounded-lg border border-indigo-100 dark:border-indigo-900/50">
+                        <span className="font-bold text-[10px] text-indigo-500 uppercase tracking-wider block mb-0.5">
+                          Sua atribuição específica:
+                        </span>
+                        {demand.additional_assignees?.find(a => a.member_id === selectedMember.id)?.role_description || 'Apoio e execução técnica na demanda.'}
+                      </div>
+                    </div>
+                  ) : demand.additional_assignees && demand.additional_assignees.length > 0 ? (
+                    <div className="mb-3 p-2 rounded-xl bg-sky-50/80 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800/60 flex items-center justify-between text-xs text-sky-800 dark:text-sky-300">
+                      <span className="flex items-center gap-1.5 font-semibold text-[11px]">
+                        <Users className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+                        <span>Você lidera +{demand.additional_assignees.length} co-responsável(is)</span>
+                      </span>
+                      <span className="text-[10px] text-sky-600 dark:text-sky-400 font-medium">
+                        Demanda em equipe
+                      </span>
+                    </div>
+                  ) : null}
 
                   {/* Solicitante */}
                   <div className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300 mb-3 bg-slate-50 dark:bg-slate-800/60 p-2 rounded-xl border border-slate-100 dark:border-slate-800">

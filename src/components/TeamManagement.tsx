@@ -4,7 +4,6 @@ import {
   Edit2, 
   Trash2, 
   Check, 
-  UserCheck, 
   Mail, 
   Briefcase, 
   Palette,
@@ -13,25 +12,24 @@ import {
   Sparkles
 } from 'lucide-react';
 import { Demand, TeamMember } from '../types';
+import { isMemberAssignedToDemand } from '../utils/assigneeHelpers';
 import { PRESET_AVATAR_COLORS, getInitials } from '../utils/styleHelpers';
 import { useToast } from './Toast';
 
 interface TeamManagementProps {
   members: TeamMember[];
   demands: Demand[];
-  activeProfileId: string;
-  onSetActiveProfileId: (id: string) => void;
   onSaveMember: (member: TeamMember) => void;
   onDeleteMember: (id: string) => void;
+  onViewMemberDemands?: (memberId: string) => void;
 }
 
 export const TeamManagement: React.FC<TeamManagementProps> = ({
   members,
   demands,
-  activeProfileId,
-  onSetActiveProfileId,
   onSaveMember,
   onDeleteMember,
+  onViewMemberDemands,
 }) => {
   const { showToast } = useToast();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -133,19 +131,14 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({
       {/* Members Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {members.map(member => {
-          const isMyProfile = member.id === activeProfileId;
-          const memberDemands = demands.filter(d => d.assignee_id === member.id);
+          const memberDemands = demands.filter(d => isMemberAssignedToDemand(d, member.id));
           const activeTasks = memberDemands.filter(d => d.status !== 'Concluído').length;
           const completedTasks = memberDemands.filter(d => d.status === 'Concluído').length;
 
           return (
             <div
               key={member.id}
-              className={`bg-white dark:bg-slate-900 rounded-2xl p-5 border transition-all duration-200 shadow-xs hover:shadow-md ${
-                isMyProfile
-                  ? 'border-sky-400 dark:border-sky-500/80 ring-2 ring-sky-500/20'
-                  : 'border-slate-200/90 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
-              }`}
+              className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200/90 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-200 shadow-xs hover:shadow-md"
             >
               <div className="flex items-start justify-between gap-3 mb-4">
                 <div className="flex items-center gap-3">
@@ -165,12 +158,6 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({
                     </div>
                   </div>
                 </div>
-
-                {isMyProfile && (
-                  <span className="px-2 py-0.5 text-[10px] font-bold bg-sky-100 text-sky-800 dark:bg-sky-950/80 dark:text-sky-300 border border-sky-300 dark:border-sky-800 rounded-md shrink-0">
-                    Seu Perfil
-                  </span>
-                )}
               </div>
 
               {member.email && (
@@ -200,34 +187,33 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({
 
               {/* Actions Footer */}
               <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800/80 text-xs">
-                {isMyProfile ? (
-                  <span className="text-xs text-sky-600 dark:text-sky-400 font-semibold flex items-center gap-1">
-                    <UserCheck className="w-3.5 h-3.5" />
-                    <span>Perfil Ativo</span>
-                  </span>
-                ) : (
+                {onViewMemberDemands ? (
                   <button
-                    onClick={() => {
-                      onSetActiveProfileId(member.id);
-                      showToast(`Perfil ativo alterado para ${member.name.split(' ')[0]}`, 'info');
-                    }}
-                    className="text-xs text-slate-500 hover:text-sky-600 dark:hover:text-sky-400 font-medium transition"
+                    type="button"
+                    onClick={() => onViewMemberDemands(member.id)}
+                    className="text-xs text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 font-semibold transition cursor-pointer flex items-center gap-1 hover:underline"
+                    title={`Ver as demandas de ${member.name}`}
                   >
-                    Usar como meu perfil
+                    <span>Ver Demandas</span>
+                    <span aria-hidden="true">→</span>
                   </button>
+                ) : (
+                  <span className="text-[11px] text-slate-400 font-medium">
+                    {activeTasks} ativa(s) • {completedTasks} concluída(s)
+                  </span>
                 )}
 
                 <div className="flex items-center gap-1 ml-auto">
                   <button
                     onClick={() => openEditModal(member)}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
                     title="Editar dados do integrante"
                   >
                     <Edit2 className="w-3.5 h-3.5" />
                   </button>
                   <button
                     onClick={() => handleDelete(member)}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition"
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition cursor-pointer"
                     title="Remover integrante"
                   >
                     <Trash2 className="w-3.5 h-3.5" />

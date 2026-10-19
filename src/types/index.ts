@@ -19,11 +19,17 @@ export interface TeamMember {
   created_at?: string;
 }
 
+export interface DemandAssignee {
+  member_id: string;
+  role_description?: string; // O que esta pessoa terá que fazer para aquela demanda
+}
+
 export interface Demand {
   id: string;
   title: string;
   description: string;
-  assignee_id: string;
+  assignee_id: string; // Responsável principal
+  additional_assignees?: DemandAssignee[]; // Responsáveis adicionais e suas atribuições
   requester: string; // "Para quem entregar / Solicitante"
   due_date: string; // ISO string YYYY-MM-DDTHH:mm
   category: DemandCategory;
@@ -32,6 +38,7 @@ export interface Demand {
   files_link?: string;
   created_at: string;
   updated_at?: string;
+  completed_at?: string;
 }
 
 export interface SupabaseConfig {
@@ -42,5 +49,5 @@ export interface SupabaseConfig {
   errorMessage?: string;
 }
 
-export type ViewTab = 'overview' | 'by-person' | 'team';
+export type ViewTab = 'overview' | 'by-person' | 'team' | 'reports';
 export type DisplayMode = 'kanban' | 'list';

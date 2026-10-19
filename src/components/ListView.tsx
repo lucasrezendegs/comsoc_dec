@@ -198,15 +198,33 @@ export const ListView: React.FC<ListViewProps> = ({
                     {/* Responsável */}
                     <td className="py-3 px-3">
                       {assignee ? (
-                        <div className="flex items-center gap-1.5" title={assignee.role}>
-                          <div
-                            className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0"
-                            style={{ backgroundColor: assignee.avatar_color || '#3B82F6' }}
-                          >
-                            {getInitials(assignee.name)}
+                        <div 
+                          className="flex items-center gap-1.5" 
+                          title={`${assignee.name} - ${assignee.role}${demand.additional_assignees && demand.additional_assignees.length > 0 ? ` (+${demand.additional_assignees.length} co-responsável(is))` : ''}`}
+                        >
+                          <div className="flex items-center -space-x-1.5">
+                            <div
+                              className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0 ring-1 ring-white dark:ring-slate-900"
+                              style={{ backgroundColor: assignee.avatar_color || '#3B82F6' }}
+                            >
+                              {getInitials(assignee.name)}
+                            </div>
+                            {demand.additional_assignees && demand.additional_assignees.length > 0 && (
+                              <div
+                                className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold bg-indigo-600 text-white shrink-0 ring-1 ring-white dark:ring-slate-900"
+                                title={`+${demand.additional_assignees.length} co-responsável(is)`}
+                              >
+                                +{demand.additional_assignees.length}
+                              </div>
+                            )}
                           </div>
-                          <span className="text-slate-700 dark:text-slate-300 font-medium whitespace-nowrap">
+                          <span className="text-slate-700 dark:text-slate-300 font-medium whitespace-nowrap text-xs">
                             {assignee.name.split(' ')[0]} {assignee.name.split(' ')[1] || ''}
+                            {demand.additional_assignees && demand.additional_assignees.length > 0 ? (
+                              <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold ml-1">
+                                (+{demand.additional_assignees.length})
+                              </span>
+                            ) : null}
                           </span>
                         </div>
                       ) : (

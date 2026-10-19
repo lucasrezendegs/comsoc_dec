@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Filter, X, Kanban, Table2 } from 'lucide-react';
+import { Search, Filter, X, Kanban, Table2, BarChart3 } from 'lucide-react';
 import { DemandCategory, DemandPriority, DemandStatus, DisplayMode, TeamMember } from '../types';
 
 interface FilterBarProps {
@@ -19,6 +19,7 @@ interface FilterBarProps {
   hasActiveFilters: boolean;
   members: TeamMember[];
   totalFilteredCount: number;
+  onOpenReports?: () => void;
 }
 
 export const FilterBar: React.FC<FilterBarProps> = ({
@@ -38,6 +39,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   hasActiveFilters,
   members,
   totalFilteredCount,
+  onOpenReports,
 }) => {
   const categories: DemandCategory[] = [
     'Vídeo / Edição',
@@ -74,8 +76,19 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           )}
         </div>
 
-        {/* View Mode Switcher */}
+        {/* View Mode Switcher + Report Button */}
         <div className="flex items-center gap-2 self-end lg:self-center shrink-0">
+          {onOpenReports && (
+            <button
+              onClick={onOpenReports}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-50 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition shadow-xs"
+              title="Gerar Relatório de Produtividade e Pontualidade"
+            >
+              <BarChart3 className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+              <span>Gerar Relatório</span>
+            </button>
+          )}
+
           {/* Display Mode toggle */}
           <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200/80 dark:border-slate-700/60">
             <button

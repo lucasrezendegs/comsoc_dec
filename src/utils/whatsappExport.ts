@@ -15,7 +15,11 @@ const PRIORITY_EMOJIS: Record<string, string> = {
   'Baixa': '🟢 Baixa',
 };
 
-export function generateSingleDemandWhatsAppText(demand: Demand, member?: TeamMember): string {
+export function generateSingleDemandWhatsAppText(
+  demand: Demand, 
+  member?: TeamMember,
+  allMembers?: TeamMember[]
+): string {
   const deadlineAnalysis = analyzeDeadline(demand.due_date, demand.status);
   const statusEmoji = STATUS_EMOJIS[demand.status] || '📋';
   const priorityTag = PRIORITY_EMOJIS[demand.priority] || demand.priority;
@@ -33,10 +37,25 @@ export function generateSingleDemandWhatsAppText(demand: Demand, member?: TeamMe
     `🏷️ *Categoria:* ${demand.category}`,
     `⚡ *Prioridade:* ${priorityTag}`,
     `🔄 *Status:* ${statusEmoji} ${demand.status}`,
-    `👤 *Responsável:* ${member?.name || 'Não atribuído'}`,
-    `🎯 *Para quem entregar:* ${demand.requester}`,
-    deadlineTag,
   ];
+
+  // Assignees list with roles / descriptions
+  const memberMap = allMembers ? new Map(allMembers.map(m => [m.id, m])) : undefined;
+  if (demand.additional_assignees && demand.additional_assignees.length > 0) {
+    lines.push(`👥 *Equipe Responsável:*`);
+    lines.push(`   • ${member?.name || 'Não atribuído'} *(Principal)*`);
+    for (const add of demand.additional_assignees) {
+      const addMember = memberMap?.get(add.member_id);
+      const name = addMember ? addMember.name : 'Integrante';
+      const taskDesc = add.role_description ? ` - _${add.role_description}_` : '';
+      lines.push(`   • ${name} *(Co-responsável)*${taskDesc}`);
+    }
+  } else {
+    lines.push(`👤 *Responsável:* ${member?.name || 'Não atribuído'}`);
+  }
+
+  lines.push(`🎯 *Para quem entregar:* ${demand.requester}`);
+  lines.push(deadlineTag);
 
   if (demand.description?.trim()) {
     lines.push(`📝 *Briefing:* ${demand.description.trim()}`);
@@ -95,8 +114,19 @@ export function generateBatchWhatsAppReport(
       if (deadline.status === 'overdue') alertText = ' ⚠️ *[ATRASADO]*';
       if (deadline.status === 'due-soon') alertText = ' ⏰ *[URGÊNCIA DE PRAZO]*';
 
+      let teamText = member?.name || 'A definir';
+      if (d.additional_assignees && d.additional_assignees.length > 0) {
+        const coNames = d.additional_assignees
+          .map(a => memberMap.get(a.member_id)?.name.split(' ')[0])
+          .filter(Boolean)
+          .join(', ');
+        if (coNames) {
+          teamText += ` (+ ${coNames})`;
+        }
+      }
+
       lines.push(`${index + 1}. ${statusEmoji} *${d.title}*${alertText}`);
-      lines.push(`   • Responsável: ${member?.name || 'A definir'}`);
+      lines.push(`   • Responsáveis: ${teamText}`);
       lines.push(`   • Para: ${d.requester}`);
       lines.push(`   • Prazo: ${formatBrazilianDate(d.due_date)} (${deadline.relativeText})`);
       lines.push(`   • Status: ${d.status} | Prioridade: ${d.priority}`);

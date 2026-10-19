@@ -190,9 +190,13 @@ export async function removeMember(id: string): Promise<void> {
 export async function upsertDemand(demand: Demand): Promise<void> {
   const localList = getLocalDemands();
   const index = localList.findIndex(d => d.id === demand.id);
-  const updatedDemand = {
+  const nowIso = new Date().toISOString();
+  const updatedDemand: Demand = {
     ...demand,
-    updated_at: new Date().toISOString(),
+    updated_at: nowIso,
+    completed_at: demand.status === 'Concluído' 
+      ? (demand.completed_at || nowIso) 
+      : undefined,
   };
 
   if (index >= 0) {
@@ -216,8 +220,9 @@ export async function upsertDemand(demand: Demand): Promise<void> {
         priority: updatedDemand.priority,
         status: updatedDemand.status,
         files_link: updatedDemand.files_link || '',
-        created_at: updatedDemand.created_at || new Date().toISOString(),
+        created_at: updatedDemand.created_at || nowIso,
         updated_at: updatedDemand.updated_at,
+        completed_at: updatedDemand.completed_at,
       });
     } catch (err) {
       console.error('Erro ao salvar demanda no Supabase:', err);
@@ -228,18 +233,35 @@ export async function upsertDemand(demand: Demand): Promise<void> {
 export async function quickUpdateStatus(id: string, status: DemandStatus): Promise<void> {
   const localList = getLocalDemands();
   const item = localList.find(d => d.id === id);
+  const nowIso = new Date().toISOString();
   if (item) {
     item.status = status;
-    item.updated_at = new Date().toISOString();
+    item.updated_at = nowIso;
+    if (status === 'Concluído') {
+      if (!item.completed_at) {
+        item.completed_at = nowIso;
+      }
+    } else {
+      item.completed_at = undefined;
+    }
     saveLocalDemands(localList);
   }
 
   const supabase = getSupabaseClient();
   if (supabase) {
     try {
+      const updatePayload: Record<string, any> = { 
+        status, 
+        updated_at: nowIso 
+      };
+      if (status === 'Concluído') {
+        updatePayload.completed_at = item?.completed_at || nowIso;
+      } else {
+        updatePayload.completed_at = null;
+      }
       await supabase
         .from('demands')
-        .update({ status, updated_at: new Date().toISOString() })
+        .update(updatePayload)
         .eq('id', id);
     } catch (err) {
       console.error('Erro ao atualizar status no Supabase:', err);

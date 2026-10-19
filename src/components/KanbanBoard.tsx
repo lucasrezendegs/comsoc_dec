@@ -232,17 +232,30 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
                       {/* Assignee & Files Link */}
                       <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800/80">
-                        {/* Assignee pill */}
+                        {/* Assignee pill / stack */}
                         <div className="flex items-center gap-2">
                           {assignee ? (
-                            <div className="flex items-center gap-1.5" title={`${assignee.name} - ${assignee.role}`}>
-                              <div
-                                className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shadow-xs shrink-0"
-                                style={{ backgroundColor: assignee.avatar_color || '#3B82F6' }}
-                              >
-                                {getInitials(assignee.name)}
+                            <div 
+                              className="flex items-center gap-1.5" 
+                              title={`${assignee.name} - ${assignee.role}${demand.additional_assignees && demand.additional_assignees.length > 0 ? ` (+${demand.additional_assignees.length} co-responsável(is))` : ''}`}
+                            >
+                              <div className="flex items-center -space-x-1.5">
+                                <div
+                                  className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shadow-xs shrink-0 ring-2 ring-white dark:ring-slate-900"
+                                  style={{ backgroundColor: assignee.avatar_color || '#3B82F6' }}
+                                >
+                                  {getInitials(assignee.name)}
+                                </div>
+                                {demand.additional_assignees && demand.additional_assignees.length > 0 && (
+                                  <div
+                                    className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold bg-indigo-600 text-white shadow-xs shrink-0 ring-2 ring-white dark:ring-slate-900"
+                                    title={`${demand.additional_assignees.length} outro(s) responsável(is) nesta demanda`}
+                                  >
+                                    +{demand.additional_assignees.length}
+                                  </div>
+                                )}
                               </div>
-                              <span className="text-xs font-medium text-slate-700 dark:text-slate-300 truncate max-w-[100px]">
+                              <span className="text-xs font-medium text-slate-700 dark:text-slate-300 truncate max-w-[85px]">
                                 {assignee.name.split(' ')[0]}
                               </span>
                             </div>

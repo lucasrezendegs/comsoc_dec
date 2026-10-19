@@ -10,16 +10,16 @@ import { TeamManagement } from './components/TeamManagement';
 import { DemandModal } from './components/DemandModal';
 import { DemandDetailModal } from './components/DemandDetailModal';
 import { SupabaseConfigModal } from './components/SupabaseConfigModal';
+import { ReportDashboard } from './components/ReportDashboard';
 import { Demand, DemandStatus, DisplayMode, TeamMember, ViewTab } from './types';
+import { isMemberAssignedToDemand } from './utils/assigneeHelpers';
 import { 
   fetchAllDemands, 
   fetchAllTeamMembers, 
-  getActiveProfileId, 
   getStoredTheme, 
   quickUpdateStatus, 
   removeDemand, 
   removeMember, 
-  setActiveProfileId, 
   setStoredTheme, 
   upsertDemand, 
   upsertMember 
@@ -33,7 +33,7 @@ function AppContent() {
   // Core Data
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [demands, setDemands] = useState<Demand[]>([]);
-  const [activeProfileId, setActiveProfile] = useState<string>('');
+  const [selectedPersonId, setSelectedPersonId] = useState<string>('');
   const [isSupabaseConnected, setIsSupabaseConnected] = useState<boolean>(false);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
@@ -71,12 +71,8 @@ function AppContent() {
     setMembers(membersRes.members);
     setDemands(demandsRes.demands);
 
-    const profileId = getActiveProfileId();
-    if (profileId && membersRes.members.some(m => m.id === profileId)) {
-      setActiveProfile(profileId);
-    } else if (membersRes.members.length > 0) {
-      setActiveProfile(membersRes.members[0].id);
-      setActiveProfileId(membersRes.members[0].id);
+    if (membersRes.members.length > 0) {
+      setSelectedPersonId(prev => prev || membersRes.members[0].id);
     }
   }, []);
 
@@ -120,16 +116,6 @@ function AppContent() {
     setStoredTheme(nextTheme);
   };
 
-  // Handle Active Profile Change
-  const handleActiveProfileChange = (id: string) => {
-    setActiveProfile(id);
-    setActiveProfileId(id);
-    const member = members.find(m => m.id === id);
-    if (member) {
-      showToast(`Perfil ativo definido como: ${member.name.split(' ')[0]}`, 'info');
-    }
-  };
-
   // Clear all filters
   const handleClearFilters = () => {
     setSearchTerm('');
@@ -165,8 +151,8 @@ function AppContent() {
       // Status
       if (selectedStatus && d.status !== selectedStatus) return false;
 
-      // Assignee
-      if (selectedAssignee && d.assignee_id !== selectedAssignee) return false;
+      // Assignee (primary or co-responsible)
+      if (selectedAssignee && !isMemberAssignedToDemand(d, selectedAssignee)) return false;
 
       // KPI shortcut filter
       if (kpiFilter === 'ativas' && d.status === 'Concluído') return false;
@@ -193,7 +179,7 @@ function AppContent() {
   // Demand CRUD Handlers
   const handleOpenNewDemand = (assigneeId?: string) => {
     setEditingDemand(null);
-    setDemandModalDefaultAssignee(assigneeId || activeProfileId || members[0]?.id || '');
+    setDemandModalDefaultAssignee(assigneeId || selectedPersonId || members[0]?.id || '');
     setIsDemandModalOpen(true);
   };
 
@@ -223,8 +209,15 @@ function AppContent() {
 
   const handleUpdateStatus = async (id: string, newStatus: DemandStatus) => {
     await quickUpdateStatus(id, newStatus);
+    const nowIso = new Date().toISOString();
     setDemands(prev =>
-      prev.map(d => (d.id === id ? { ...d, status: newStatus, updated_at: new Date().toISOString() } : d))
+      prev.map(d => {
+        if (d.id === id) {
+          const completedAt = newStatus === 'Concluído' ? (d.completed_at || nowIso) : undefined;
+          return { ...d, status: newStatus, updated_at: nowIso, completed_at: completedAt };
+        }
+        return d;
+      })
     );
     setSelectedDemandForDetail(prev => prev && prev.id === id ? { ...prev, status: newStatus } : prev);
     showToast(`Status atualizado para "${newStatus}"!`, 'info');
@@ -256,12 +249,9 @@ function AppContent() {
   const handleDeleteMember = async (id: string) => {
     await removeMember(id);
     setMembers(prev => prev.filter(m => m.id !== id));
-    if (activeProfileId === id) {
+    if (selectedPersonId === id) {
       const remaining = members.filter(m => m.id !== id);
-      if (remaining.length > 0) {
-        setActiveProfile(remaining[0].id);
-        setActiveProfileId(remaining[0].id);
-      }
+      setSelectedPersonId(remaining[0]?.id || '');
     }
   };
 
@@ -274,8 +264,6 @@ function AppContent() {
         currentTab={currentTab}
         onTabChange={setCurrentTab}
         members={members}
-        activeProfileId={activeProfileId}
-        onActiveProfileChange={handleActiveProfileChange}
         onOpenNewDemand={() => handleOpenNewDemand()}
         onOpenSupabaseConfig={() => setIsSupabaseModalOpen(true)}
         isSupabaseConnected={isSupabaseConnected}
@@ -314,6 +302,7 @@ function AppContent() {
               hasActiveFilters={hasActiveFilters}
               members={members}
               totalFilteredCount={filteredDemands.length}
+              onOpenReports={() => setCurrentTab('reports')}
             />
 
             {/* View Mode: Kanban vs Spreadsheet List */}
@@ -345,7 +334,8 @@ function AppContent() {
             <MemberDemandsView
               members={members}
               demands={demands}
-              activeProfileId={activeProfileId}
+              selectedMemberId={selectedPersonId}
+              onSelectMemberId={setSelectedPersonId}
               onUpdateStatus={handleUpdateStatus}
               onEditDemand={handleEditDemand}
               onDeleteDemand={handleDeleteDemand}
@@ -361,10 +351,24 @@ function AppContent() {
             <TeamManagement
               members={members}
               demands={demands}
-              activeProfileId={activeProfileId}
-              onSetActiveProfileId={handleActiveProfileChange}
               onSaveMember={handleSaveMember}
               onDeleteMember={handleDeleteMember}
+              onViewMemberDemands={memberId => {
+                setSelectedPersonId(memberId);
+                setCurrentTab('by-person');
+              }}
+            />
+          </div>
+        )}
+
+        {/* Tab 4: Relatórios & Indicadores de Produtividade */}
+        {currentTab === 'reports' && (
+          <div className="animate-in fade-in duration-200">
+            <ReportDashboard
+              demands={demands}
+              members={members}
+              onViewDemand={handleViewDemand}
+              onEditDemand={handleEditDemand}
             />
           </div>
         )}

@@ -14,10 +14,12 @@ import {
   Briefcase,
   Layers,
   ArrowRight,
-  Maximize2
+  Maximize2,
+  Users
 } from 'lucide-react';
 import { Demand, DemandStatus, TeamMember } from '../types';
 import { analyzeDeadline, formatBrazilianDate } from '../utils/dateUtils';
+import { getAllDemandAssignees } from '../utils/assigneeHelpers';
 import { 
   getCategoryIcon, 
   getCategoryBadgeClass, 
@@ -62,6 +64,7 @@ export const DemandDetailModal: React.FC<DemandDetailModalProps> = ({
   if (!isOpen || !demand) return null;
 
   const assignee = members.find(m => m.id === demand.assignee_id);
+  const allAssignees = getAllDemandAssignees(demand, members);
   const deadline = analyzeDeadline(demand.due_date, demand.status);
   const priorityInfo = getPriorityBadge(demand.priority);
 
@@ -203,11 +206,18 @@ export const DemandDetailModal: React.FC<DemandDetailModalProps> = ({
               </div>
             </div>
 
-            {/* Responsável */}
+            {/* Responsável Principal */}
             <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-800">
-              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
-                Responsável
-              </span>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
+                  Responsável
+                </span>
+                {demand.additional_assignees && demand.additional_assignees.length > 0 && (
+                  <span className="text-[10px] font-bold text-sky-700 dark:text-sky-300 bg-sky-100 dark:bg-sky-950 px-1.5 py-0.2 rounded">
+                    +{demand.additional_assignees.length} co-resp.
+                  </span>
+                )}
+              </div>
               {assignee ? (
                 <div className="flex items-center gap-2">
                   <div
@@ -257,6 +267,73 @@ export const DemandDetailModal: React.FC<DemandDetailModalProps> = ({
               </span>
             </div>
           </div>
+
+          {/* Equipe Responsável e Atribuições Individuais */}
+          {allAssignees.length > 0 && (
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                  <Users className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+                  <span>
+                    Equipe Responsável {allAssignees.length > 1 ? `(${allAssignees.length} pessoas)` : ''}
+                  </span>
+                </span>
+                <span className="text-[11px] text-slate-400">
+                  {allAssignees.length > 1 
+                    ? 'Tarefas e atribuições de cada responsável nesta demanda'
+                    : 'Responsável atribuído'}
+                </span>
+              </div>
+
+              <div className={`grid gap-3 ${allAssignees.length > 1 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
+                {allAssignees.map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 shadow-2xs space-y-2.5"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-xs shrink-0"
+                          style={{ backgroundColor: item.member.avatar_color || '#3B82F6' }}
+                        >
+                          {getInitials(item.member.name)}
+                        </div>
+                        <div>
+                          <div className="font-bold text-xs text-slate-900 dark:text-slate-100">
+                            {item.member.name}
+                          </div>
+                          <div className="text-[10px] text-slate-400">
+                            {item.member.role}
+                          </div>
+                        </div>
+                      </div>
+
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-md border shrink-0 ${
+                          item.isPrimary
+                            ? 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/70 dark:text-sky-300 dark:border-sky-800'
+                            : 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/70 dark:text-indigo-300 dark:border-indigo-800'
+                        }`}
+                      >
+                        {item.isPrimary ? 'Responsável Principal' : 'Co-responsável'}
+                      </span>
+                    </div>
+
+                    {/* Descrição do que a pessoa fará */}
+                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                      <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
+                        {item.isPrimary ? 'Atribuição / Foco:' : 'O que terá que fazer:'}
+                      </span>
+                      <p className="text-xs text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/80 p-2.5 rounded-lg border border-slate-200/60 dark:border-slate-700/60 leading-relaxed">
+                        {item.roleDescription || (item.isPrimary ? 'Coordenação geral e entrega final da demanda.' : 'Apoio e execução técnica na demanda.')}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Description / Briefing Completo */}
           <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800">

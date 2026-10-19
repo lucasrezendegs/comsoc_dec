@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { 
   Megaphone, 
   Layers, 
+  User,
   Users, 
   UserCheck, 
   Plus, 
@@ -11,7 +12,8 @@ import {
   Menu, 
   X,
   ChevronDown,
-  Sparkles
+  Sparkles,
+  BarChart3
 } from 'lucide-react';
 import { TeamMember, ViewTab } from '../types';
 import { getInitials } from '../utils/styleHelpers';
@@ -20,8 +22,6 @@ interface NavbarProps {
   currentTab: ViewTab;
   onTabChange: (tab: ViewTab) => void;
   members: TeamMember[];
-  activeProfileId: string;
-  onActiveProfileChange: (id: string) => void;
   onOpenNewDemand: () => void;
   onOpenSupabaseConfig: () => void;
   isSupabaseConnected: boolean;
@@ -34,8 +34,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   currentTab,
   onTabChange,
   members,
-  activeProfileId,
-  onActiveProfileChange,
   onOpenNewDemand,
   onOpenSupabaseConfig,
   isSupabaseConnected,
@@ -44,7 +42,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   totalActiveDemandsCount,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const activeMember = members.find(m => m.id === activeProfileId) || members[0];
 
   return (
     <header className="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors">
@@ -97,8 +94,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
               }`}
             >
-              <UserCheck className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-              <span>Por Pessoa / Minhas Demandas</span>
+              <User className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+              <span>Demandas por Pessoa</span>
             </button>
 
             <button
@@ -115,35 +112,22 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {members.length}
               </span>
             </button>
+
+            <button
+              onClick={() => onTabChange('reports')}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                currentTab === 'reports'
+                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+            >
+              <BarChart3 className="w-4 h-4 text-amber-500 dark:text-amber-400" />
+              <span>Relatórios</span>
+            </button>
           </nav>
 
-          {/* Right Area: Profile Selector + Supabase + Theme + New Demand CTA */}
+          {/* Right Area: Supabase + Theme + New Demand CTA */}
           <div className="flex items-center gap-2 sm:gap-2.5">
-            {/* Quick Profile Selector: Meu Perfil Ativo */}
-            <div className="hidden lg:flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/60 pl-2 pr-3 py-1.5 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs">
-              <span className="text-[11px] text-slate-400 font-medium">Meu Perfil:</span>
-              <div className="flex items-center gap-1.5">
-                {activeMember && (
-                  <div
-                    className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0 shadow-xs"
-                    style={{ backgroundColor: activeMember.avatar_color || '#3B82F6' }}
-                  >
-                    {getInitials(activeMember.name)}
-                  </div>
-                )}
-                <select
-                  value={activeProfileId}
-                  onChange={e => onActiveProfileChange(e.target.value)}
-                  className="bg-transparent font-semibold text-slate-800 dark:text-slate-200 text-xs focus:outline-none cursor-pointer max-w-[130px] truncate"
-                >
-                  {members.map(m => (
-                    <option key={m.id} value={m.id} className="dark:bg-slate-900">
-                      {m.name.split(' ')[0]} ({m.role.split('/')[0].trim()})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
 
             {/* Supabase Connection Pill */}
             <button
@@ -196,22 +180,6 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Mobile Navigation Drawer */}
         {mobileMenuOpen && (
           <div className="md:hidden py-3 border-t border-slate-200 dark:border-slate-800 space-y-2">
-            {/* Quick Profile in Mobile */}
-            <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 text-xs">
-              <span className="text-slate-400 font-medium">Meu Perfil Ativo:</span>
-              <select
-                value={activeProfileId}
-                onChange={e => onActiveProfileChange(e.target.value)}
-                className="bg-transparent font-semibold text-slate-800 dark:text-slate-200 focus:outline-none"
-              >
-                {members.map(m => (
-                  <option key={m.id} value={m.id} className="dark:bg-slate-900">
-                    {m.name} ({m.role})
-                  </option>
-                ))}
-              </select>
-            </div>
-
             <div className="grid grid-cols-1 gap-1">
               <button
                 onClick={() => {
@@ -244,8 +212,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                     : 'text-slate-600 dark:text-slate-400'
                 }`}
               >
-                <UserCheck className="w-4 h-4" />
-                <span>Por Pessoa / Minhas Demandas</span>
+                <User className="w-4 h-4" />
+                <span>Demandas por Pessoa</span>
               </button>
 
               <button
@@ -266,6 +234,21 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700">
                   {members.length}
                 </span>
+              </button>
+
+              <button
+                onClick={() => {
+                  onTabChange('reports');
+                  setMobileMenuOpen(false);
+                }}
+                className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold ${
+                  currentTab === 'reports'
+                    ? 'bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300'
+                    : 'text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                <BarChart3 className="w-4 h-4 text-amber-500" />
+                <span>Relatórios & Indicadores de Gestão</span>
               </button>
             </div>
           </div>

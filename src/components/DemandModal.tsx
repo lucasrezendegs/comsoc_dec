@@ -10,9 +10,13 @@ import {
   User, 
   FileText,
   Clock,
-  Sparkles
+  Sparkles,
+  Plus,
+  Trash2,
+  Users,
+  UserPlus
 } from 'lucide-react';
-import { Demand, DemandCategory, DemandPriority, DemandStatus, TeamMember } from '../types';
+import { Demand, DemandAssignee, DemandCategory, DemandPriority, DemandStatus, TeamMember } from '../types';
 import { useToast } from './Toast';
 
 interface DemandModalProps {
@@ -49,6 +53,7 @@ export const DemandModal: React.FC<DemandModalProps> = ({
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [assigneeId, setAssigneeId] = useState('');
+  const [additionalAssignees, setAdditionalAssignees] = useState<DemandAssignee[]>([]);
   const [requester, setRequester] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [category, setCategory] = useState<DemandCategory>('Design / Arte');
@@ -74,6 +79,7 @@ export const DemandModal: React.FC<DemandModalProps> = ({
       setTitle(editingDemand.title || '');
       setDescription(editingDemand.description || '');
       setAssigneeId(editingDemand.assignee_id || '');
+      setAdditionalAssignees(editingDemand.additional_assignees ? [...editingDemand.additional_assignees] : []);
       setRequester(editingDemand.requester || '');
       setDueDate(editingDemand.due_date || '');
       setCategory(editingDemand.category || 'Design / Arte');
@@ -84,6 +90,7 @@ export const DemandModal: React.FC<DemandModalProps> = ({
       setTitle('');
       setDescription('');
       setAssigneeId(defaultAssigneeId || members[0]?.id || '');
+      setAdditionalAssignees([]);
       setRequester('');
       setDueDate(getSuggestedDateTime(24)); // Default to tomorrow
       setCategory('Design / Arte');
@@ -92,6 +99,27 @@ export const DemandModal: React.FC<DemandModalProps> = ({
       setFilesLink('');
     }
   }, [editingDemand, isOpen, defaultAssigneeId, members]);
+
+  const handleAddAdditionalAssignee = () => {
+    const usedIds = new Set([assigneeId, ...additionalAssignees.map(a => a.member_id)]);
+    const availableMember = members.find(m => !usedIds.has(m.id));
+    setAdditionalAssignees(prev => [
+      ...prev,
+      { member_id: availableMember ? availableMember.id : (members[0]?.id || ''), role_description: '' },
+    ]);
+  };
+
+  const handleUpdateAdditionalAssignee = (index: number, field: 'member_id' | 'role_description', value: string) => {
+    setAdditionalAssignees(prev => {
+      const next = [...prev];
+      next[index] = { ...next[index], [field]: value };
+      return next;
+    });
+  };
+
+  const handleRemoveAdditionalAssignee = (index: number) => {
+    setAdditionalAssignees(prev => prev.filter((_, i) => i !== index));
+  };
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -123,11 +151,19 @@ export const DemandModal: React.FC<DemandModalProps> = ({
       return;
     }
 
+    const cleanedAdditional: DemandAssignee[] = additionalAssignees
+      .filter(a => a.member_id && a.member_id !== assigneeId)
+      .map(a => ({
+        member_id: a.member_id,
+        role_description: a.role_description?.trim() || undefined,
+      }));
+
     const demandToSave: Demand = {
       id: editingDemand ? editingDemand.id : `dem_${Date.now()}`,
       title: title.trim(),
       description: description.trim(),
       assignee_id: assigneeId,
+      additional_assignees: cleanedAdditional.length > 0 ? cleanedAdditional : undefined,
       requester: requester.trim(),
       due_date: dueDate,
       category,
@@ -136,6 +172,7 @@ export const DemandModal: React.FC<DemandModalProps> = ({
       files_link: filesLink.trim(),
       created_at: editingDemand ? editingDemand.created_at : new Date().toISOString(),
       updated_at: new Date().toISOString(),
+      completed_at: editingDemand?.completed_at,
     };
 
     onSave(demandToSave);
@@ -187,34 +224,62 @@ export const DemandModal: React.FC<DemandModalProps> = ({
           </div>
 
           {/* Para quem entregar / Solicitante */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block font-semibold text-slate-800 dark:text-slate-200 mb-1.5 flex items-center gap-1.5">
-                <Send className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
-                <span>Para quem entregar / Solicitante *</span>
-              </label>
-              <input
-                type="text"
-                required
-                value={requester}
-                onChange={e => setRequester(e.target.value)}
-                placeholder="Ex: Chefia do Gabinete, RH, Imprensa..."
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500"
-              />
+          <div>
+            <label className="block font-semibold text-slate-800 dark:text-slate-200 mb-1.5 flex items-center gap-1.5">
+              <Send className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+              <span>Para quem entregar / Solicitante *</span>
+            </label>
+            <input
+              type="text"
+              required
+              value={requester}
+              onChange={e => setRequester(e.target.value)}
+              placeholder="Ex: Chefia do Gabinete, Diretoria Geral, RH, Assessoria de Imprensa..."
+              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500"
+            />
+          </div>
+
+          {/* Equipe Responsável pela Demanda (Responsável Principal + Responsáveis Adicionais) */}
+          <div className="p-4 rounded-2xl bg-slate-50/90 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 space-y-3.5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <label className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 text-xs">
+                  <Users className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+                  <span>Responsáveis pela Demanda</span>
+                </label>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Defina o responsável principal e adicione outros membros com suas respectivas atribuições.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleAddAdditionalAssignee}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-sky-700 dark:text-sky-300 bg-sky-100/90 dark:bg-sky-950/80 hover:bg-sky-200 dark:hover:bg-sky-900 border border-sky-300/80 dark:border-sky-800 transition cursor-pointer active:scale-95 shadow-2xs"
+                title="Adicionar mais uma pessoa responsável nesta demanda"
+              >
+                <UserPlus className="w-3.5 h-3.5 stroke-[2.5]" />
+                <span>+ Adicionar mais um responsável</span>
+              </button>
             </div>
 
-            {/* Responsável da Seção */}
-            <div>
-              <label className="block font-semibold text-slate-800 dark:text-slate-200 mb-1.5 flex items-center gap-1.5">
-                <User className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
-                <span>Responsável da Seção</span>
-              </label>
+            {/* Responsável Principal */}
+            <div className="bg-white dark:bg-slate-800/90 p-3 rounded-xl border border-slate-200 dark:border-slate-700 shadow-2xs">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                  <User className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+                  <span>Responsável Principal</span>
+                </span>
+                <span className="text-[10px] font-semibold text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/60 px-2 py-0.5 rounded-md border border-sky-200 dark:border-sky-800/60">
+                  Líder da Demanda
+                </span>
+              </div>
               <select
                 value={assigneeId}
                 onChange={e => setAssigneeId(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500 cursor-pointer"
+                className="w-full px-3.5 py-2 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500/30 cursor-pointer font-medium"
               >
-                <option value="">A definir / Sem responsável</option>
+                <option value="">A definir / Sem responsável principal</option>
                 {members.map(m => (
                   <option key={m.id} value={m.id}>
                     {m.name} — {m.role}
@@ -222,6 +287,87 @@ export const DemandModal: React.FC<DemandModalProps> = ({
                 ))}
               </select>
             </div>
+
+            {/* Lista de Responsáveis Adicionais */}
+            {additionalAssignees.length > 0 && (
+              <div className="space-y-2.5 pt-1">
+                <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 px-1">
+                  <span>Co-responsáveis Adicionais ({additionalAssignees.length})</span>
+                  <span className="text-[10px] normal-case text-slate-400 font-normal">
+                    Cada pessoa terá sua atribuição específica registrada
+                  </span>
+                </div>
+
+                {additionalAssignees.map((assignee, idx) => {
+                  return (
+                    <div
+                      key={idx}
+                      className="p-3.5 rounded-xl bg-white dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 space-y-2.5 shadow-2xs animate-in fade-in"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="w-5 h-5 rounded-full bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 text-[10px] font-bold flex items-center justify-center">
+                            #{idx + 1}
+                          </span>
+                          <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                            Responsável Adicional
+                          </span>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveAdditionalAssignee(idx)}
+                          className="flex items-center gap-1 text-xs font-semibold text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/40 px-2 py-1 rounded-md transition cursor-pointer"
+                          title="Remover este responsável da demanda"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Remover</span>
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                        {/* Seleção do Membro */}
+                        <div className="sm:col-span-5">
+                          <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                            Pessoa Responsável:
+                          </label>
+                          <select
+                            value={assignee.member_id}
+                            onChange={e => handleUpdateAdditionalAssignee(idx, 'member_id', e.target.value)}
+                            className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500/30 cursor-pointer font-medium"
+                          >
+                            <option value="">Selecione o integrante...</option>
+                            {members.map(m => (
+                              <option 
+                                key={m.id} 
+                                value={m.id}
+                                disabled={m.id === assigneeId}
+                              >
+                                {m.name} — {m.role} {m.id === assigneeId ? '(Já é Principal)' : ''}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* Espaço para descricionar o que aquela pessoa terá que fazer */}
+                        <div className="sm:col-span-7">
+                          <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1 flex items-center justify-between">
+                            <span>O que esta pessoa terá que fazer nesta demanda:</span>
+                          </label>
+                          <textarea
+                            rows={2}
+                            value={assignee.role_description || ''}
+                            onChange={e => handleUpdateAdditionalAssignee(idx, 'role_description', e.target.value)}
+                            placeholder="Descreva a atribuição: ex. 'Gravar captação de áudio e entrevistas', 'Criar artes dos stories', 'Revisar ortografia'..."
+                            className="w-full px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500/30 resize-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Prazo de Entrega */}
