@@ -47,14 +47,19 @@ export const Navbar: React.FC<NavbarProps> = ({
     <header className="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors">
       <div className="max-w-[1600px] mx-auto px-3 sm:px-4 lg:px-6">
         <div className="flex items-center justify-between h-16 gap-4">
-          {/* Logo & Section Identity */}
-          <div className="flex items-center gap-3 shrink-0">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-sky-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-sky-500/20">
+          {/* Logo & Section Identity - Clickable to Overview */}
+          <button
+            type="button"
+            onClick={() => onTabChange('overview')}
+            className="flex items-center gap-3 shrink-0 text-left cursor-pointer group focus:outline-none rounded-2xl p-1.5 -m-1.5 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 transition-all select-none"
+            title="Ir para a Visão Geral"
+          >
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-sky-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-sky-500/20 group-hover:scale-105 group-hover:shadow-sky-500/30 transition-all">
               <Megaphone className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="font-extrabold text-base tracking-tight text-slate-900 dark:text-white">
+                <span className="font-extrabold text-base tracking-tight text-slate-900 dark:text-white group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">
                   ComSoc DEC
                 </span>
                 <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-sky-100 dark:bg-sky-950/80 text-sky-700 dark:text-sky-300 font-bold border border-sky-200 dark:border-sky-800">
@@ -65,7 +70,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 Comunicação Social
               </p>
             </div>
-          </div>
+          </button>
 
           {/* Desktop Navigation Tabs */}
           <nav className="hidden md:flex items-center gap-1 bg-slate-100/90 dark:bg-slate-800/80 p-1 rounded-2xl border border-slate-200/60 dark:border-slate-700/60">
