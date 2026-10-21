@@ -314,6 +314,7 @@ function AppContent() {
                 onEditDemand={handleEditDemand}
                 onDeleteDemand={handleDeleteDemand}
                 onViewDemand={handleViewDemand}
+                collapsibleCompleted={true}
               />
             ) : (
               <ListView
@@ -323,6 +324,7 @@ function AppContent() {
                 onEditDemand={handleEditDemand}
                 onDeleteDemand={handleDeleteDemand}
                 onViewDemand={handleViewDemand}
+                collapsibleCompleted={true}
               />
             )}
           </div>

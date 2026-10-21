@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   ExternalLink, 
   Clock, 
@@ -7,6 +7,11 @@ import {
   Trash2, 
   ChevronRight, 
   ChevronLeft,
+  ChevronDown,
+  ChevronUp,
+  CheckCircle2,
+  Eye,
+  EyeOff,
   User,
   Send,
   Calendar,
@@ -28,6 +33,9 @@ interface KanbanBoardProps {
   onEditDemand: (demand: Demand) => void;
   onDeleteDemand: (id: string) => void;
   onViewDemand: (demand: Demand) => void;
+  collapsibleCompleted?: boolean;
+  isCompletedExpanded?: boolean;
+  onToggleCompletedExpanded?: () => void;
 }
 
 interface ColumnConfig {
@@ -83,7 +91,23 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   onEditDemand,
   onDeleteDemand,
   onViewDemand,
+  collapsibleCompleted = false,
+  isCompletedExpanded: controlledCompletedExpanded,
+  onToggleCompletedExpanded,
 }) => {
+  const [internalCompletedExpanded, setInternalCompletedExpanded] = useState(false);
+  const completedExpanded = controlledCompletedExpanded !== undefined 
+    ? controlledCompletedExpanded 
+    : internalCompletedExpanded;
+
+  const toggleCompleted = () => {
+    if (onToggleCompletedExpanded) {
+      onToggleCompletedExpanded();
+    } else {
+      setInternalCompletedExpanded(prev => !prev);
+    }
+  };
+
   const memberMap = new Map(members.map(m => [m.id, m]));
 
   const getNextStatus = (current: DemandStatus): DemandStatus | null => {
@@ -106,6 +130,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 items-start">
       {COLUMNS.map(column => {
         const columnDemands = demands.filter(d => d.status === column.status);
+        const isCompletedColumn = column.status === 'Concluído';
+        const isCollapsed = collapsibleCompleted && isCompletedColumn && !completedExpanded;
 
         return (
           <div
@@ -113,7 +139,16 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
             className="flex flex-col bg-slate-50/70 dark:bg-slate-900/50 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-3.5 min-h-[500px]"
           >
             {/* Column Header */}
-            <div className={`flex items-center justify-between p-3 rounded-xl mb-3.5 border ${column.headerBg} ${column.borderColor}`}>
+            <div 
+              onClick={() => {
+                if (isCompletedColumn && collapsibleCompleted) {
+                  toggleCompleted();
+                }
+              }}
+              className={`flex items-center justify-between p-3 rounded-xl mb-3.5 border transition-all ${column.headerBg} ${column.borderColor} ${
+                isCompletedColumn && collapsibleCompleted ? 'cursor-pointer hover:opacity-95 select-none' : ''
+              }`}
+            >
               <div className="flex items-center gap-2">
                 <span className={`w-2.5 h-2.5 rounded-full ${
                   column.status === 'A Fazer' ? 'bg-slate-400' :
@@ -121,23 +156,97 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                   column.status === 'Em Revisão' ? 'bg-amber-500' :
                   'bg-emerald-500'
                 }`} />
-                <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100">
-                  {column.title}
+                <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
+                  <span>{column.title}</span>
+                  {isCompletedColumn && collapsibleCompleted && (
+                    <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-100/80 dark:bg-emerald-900/50 px-2 py-0.5 rounded-md border border-emerald-300/60 dark:border-emerald-700/60 hidden sm:inline">
+                      {completedExpanded ? 'visível (clique p/ ocultar)' : 'oculto (clique p/ ver)'}
+                    </span>
+                  )}
                 </h3>
               </div>
-              <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${column.badgeBg}`}>
-                {columnDemands.length}
-              </span>
+
+              {/* Counter Balloon / Pill */}
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    if (isCompletedColumn && collapsibleCompleted) {
+                      e.stopPropagation();
+                      toggleCompleted();
+                    }
+                  }}
+                  className={`px-2.5 py-1 rounded-full text-xs font-black transition-all shadow-xs flex items-center gap-1.5 ${column.badgeBg} ${
+                    isCompletedColumn && collapsibleCompleted
+                      ? 'cursor-pointer hover:scale-105 active:scale-95 ring-2 ring-emerald-400/50 hover:bg-emerald-200 dark:hover:bg-emerald-800'
+                      : ''
+                  }`}
+                  title={isCompletedColumn && collapsibleCompleted
+                    ? (completedExpanded ? 'Clique no balãozinho para ocultar a lista' : 'Clique no balãozinho de "concluído" para exibir a lista toda')
+                    : undefined
+                  }
+                >
+                  <span>{columnDemands.length}</span>
+                  {isCompletedColumn && collapsibleCompleted && (
+                    completedExpanded ? (
+                      <ChevronUp className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-300" />
+                    ) : (
+                      <ChevronDown className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-300" />
+                    )
+                  )}
+                </button>
+              </div>
             </div>
 
             {/* Cards Container */}
             <div className="flex flex-col gap-3 flex-1">
-              {columnDemands.length === 0 ? (
+              {isCollapsed ? (
+                /* Collapsed Completed State */
+                <div
+                  onClick={toggleCompleted}
+                  className="flex-1 flex flex-col items-center justify-center p-6 text-center border-2 border-dashed border-emerald-300 dark:border-emerald-800 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/30 hover:bg-emerald-100/60 dark:hover:bg-emerald-900/40 transition cursor-pointer group"
+                >
+                  <div className="w-14 h-14 rounded-2xl bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 flex items-center justify-center mb-3 font-black text-lg shadow-sm group-hover:scale-110 transition border border-emerald-300/60 dark:border-emerald-700/60">
+                    {columnDemands.length}
+                  </div>
+                  <span className="text-sm font-bold text-slate-800 dark:text-slate-100">
+                    {columnDemands.length} {columnDemands.length === 1 ? 'Demanda Concluída' : 'Demandas Concluídas'}
+                  </span>
+                  <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 mb-4 max-w-[220px]">
+                    {columnDemands.length > 0 
+                      ? 'A lista fica oculta para focar nas ativas. Clique no balãozinho de "Concluído" para abrir a lista toda.'
+                      : 'Nenhuma demanda concluída no momento.'}
+                  </p>
+                  {columnDemands.length > 0 ? (
+                    <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm group-hover:shadow transition active:scale-95">
+                      <Eye className="w-4 h-4" />
+                      <span>Ver Lista Concluída ({columnDemands.length})</span>
+                    </span>
+                  ) : null}
+                </div>
+              ) : columnDemands.length === 0 ? (
                 <div className="h-32 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl text-slate-400 dark:text-slate-500 text-xs">
                   <span>Nenhuma demanda aqui</span>
                 </div>
               ) : (
-                columnDemands.map(demand => {
+                <>
+                  {isCompletedColumn && collapsibleCompleted && (
+                    <button
+                      type="button"
+                      onClick={toggleCompleted}
+                      className="flex items-center justify-between px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-emerald-100/70 hover:bg-emerald-200/80 text-emerald-800 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/60 dark:text-emerald-300 transition mb-1 cursor-pointer"
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                        <span>Lista de concluídas visível</span>
+                      </span>
+                      <span className="flex items-center gap-1 text-[10px]">
+                        <ChevronUp className="w-3 h-3" />
+                        <span>Ocultar lista</span>
+                      </span>
+                    </button>
+                  )}
+                  {columnDemands.map(demand => {
                   const assignee = memberMap.get(demand.assignee_id);
                   const deadline = analyzeDeadline(demand.due_date, demand.status);
                   const priorityInfo = getPriorityBadge(demand.priority);
@@ -347,7 +456,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                       </div>
                     </div>
                   );
-                })
+                })}
+                </>
               )}
             </div>
           </div>

@@ -20,6 +20,7 @@ interface FilterBarProps {
   members: TeamMember[];
   totalFilteredCount: number;
   onOpenReports?: () => void;
+  hideAssigneeFilter?: boolean;
 }
 
 export const FilterBar: React.FC<FilterBarProps> = ({
@@ -40,6 +41,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   members,
   totalFilteredCount,
   onOpenReports,
+  hideAssigneeFilter = false,
 }) => {
   const categories: DemandCategory[] = [
     'Vídeo / Edição',
@@ -169,18 +171,20 @@ export const FilterBar: React.FC<FilterBarProps> = ({
         </select>
 
         {/* Responsável */}
-        <select
-          value={selectedAssignee}
-          onChange={e => onAssigneeChange(e.target.value)}
-          className="px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-sky-500 cursor-pointer"
-        >
-          <option value="">Todos Responsáveis</option>
-          {members.map(m => (
-            <option key={m.id} value={m.id}>
-              {m.name} ({m.role.split('/')[0].trim()})
-            </option>
-          ))}
-        </select>
+        {!hideAssigneeFilter && (
+          <select
+            value={selectedAssignee}
+            onChange={e => onAssigneeChange(e.target.value)}
+            className="px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-sky-500 cursor-pointer"
+          >
+            <option value="">Todos Responsáveis</option>
+            {members.map(m => (
+              <option key={m.id} value={m.id}>
+                {m.name} ({m.role.split('/')[0].trim()})
+              </option>
+            ))}
+          </select>
+        )}
 
         {/* Limpar filtros */}
         {hasActiveFilters && (

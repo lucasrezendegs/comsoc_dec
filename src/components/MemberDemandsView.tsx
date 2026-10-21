@@ -1,30 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  User, 
   CheckCircle2, 
   Loader2, 
   CircleDashed, 
-  AlertTriangle, 
   Clock, 
-  Calendar, 
-  ExternalLink, 
-  Edit3, 
-  Trash2, 
-  Send, 
   Plus,
-  Maximize2,
-  Users
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
-import { Demand, DemandStatus, TeamMember } from '../types';
-import { analyzeDeadline } from '../utils/dateUtils';
+import { Demand, DemandStatus, DisplayMode, TeamMember } from '../types';
 import { isMemberAssignedToDemand } from '../utils/assigneeHelpers';
-import { 
-  getCategoryIcon, 
-  getCategoryBadgeClass, 
-  getPriorityBadge, 
-  getInitials 
-} from '../utils/styleHelpers';
-import { useToast } from './Toast';
+import { getInitials } from '../utils/styleHelpers';
+import { FilterBar } from './FilterBar';
+import { KanbanBoard } from './KanbanBoard';
+import { ListView } from './ListView';
 
 interface MemberDemandsViewProps {
   members: TeamMember[];
@@ -50,7 +39,18 @@ export const MemberDemandsView: React.FC<MemberDemandsViewProps> = ({
   onViewDemand,
 }) => {
   const [internalSelectedMemberId, setInternalSelectedMemberId] = useState<string>(members[0]?.id || '');
-  const { showToast } = useToast();
+  
+  // Layout and display mode: Kanban or Lista / Planilha (identical to Visão Geral)
+  const [displayMode, setDisplayMode] = useState<DisplayMode>('kanban');
+
+  // Filter states (identical to Visão Geral)
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [selectedPriority, setSelectedPriority] = useState<string>('');
+  const [selectedStatus, setSelectedStatus] = useState<string>('');
+
+  // Collapsible completed list state: defaults to false (hidden/oculta)
+  const [isCompletedExpanded, setIsCompletedExpanded] = useState<boolean>(false);
 
   const selectedMemberId = controlledSelectedMemberId !== undefined ? controlledSelectedMemberId : internalSelectedMemberId;
   const setSelectedMemberId = (id: string) => {
@@ -67,7 +67,45 @@ export const MemberDemandsView: React.FC<MemberDemandsViewProps> = ({
   const selectedMember = members.find(m => m.id === selectedMemberId) || members[0];
 
   // All demands for the selected person (primary or co-responsible)
-  const memberDemands = demands.filter(d => isMemberAssignedToDemand(d, selectedMember?.id));
+  const memberDemands = useMemo(() => {
+    if (!selectedMember) return [];
+    return demands.filter(d => isMemberAssignedToDemand(d, selectedMember.id));
+  }, [demands, selectedMember]);
+
+  // Filtered demands for the selected person based on search and filters
+  const filteredMemberDemands = useMemo(() => {
+    return memberDemands.filter(demand => {
+      // Search filter
+      if (searchTerm.trim()) {
+        const q = searchTerm.toLowerCase();
+        const matchTitle = demand.title.toLowerCase().includes(q);
+        const matchDesc = demand.description?.toLowerCase().includes(q);
+        const matchReq = demand.requester.toLowerCase().includes(q);
+        const matchRoleDesc = demand.additional_assignees?.some(
+          a => a.role_description?.toLowerCase().includes(q)
+        );
+        if (!matchTitle && !matchDesc && !matchReq && !matchRoleDesc) return false;
+      }
+
+      // Dropdown filters
+      if (selectedCategory && demand.category !== selectedCategory) return false;
+      if (selectedPriority && demand.priority !== selectedPriority) return false;
+      if (selectedStatus && demand.status !== selectedStatus) return false;
+
+      return true;
+    });
+  }, [memberDemands, searchTerm, selectedCategory, selectedPriority, selectedStatus]);
+
+  const hasActiveFilters = Boolean(
+    searchTerm.trim() || selectedCategory || selectedPriority || selectedStatus
+  );
+
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setSelectedCategory('');
+    setSelectedPriority('');
+    setSelectedStatus('');
+  };
 
   // Stats for the selected person
   const pendingDemands = memberDemands.filter(d => d.status === 'A Fazer');
@@ -76,34 +114,9 @@ export const MemberDemandsView: React.FC<MemberDemandsViewProps> = ({
   const completedDemands = memberDemands.filter(d => d.status === 'Concluído');
   const activeDemands = memberDemands.filter(d => d.status !== 'Concluído');
 
-  // Urgency sorted demands (overdue, due-soon first, then date)
-  const sortedDemands = [...memberDemands].sort((a, b) => {
-    // Completed goes to bottom
-    if (a.status === 'Concluído' && b.status !== 'Concluído') return 1;
-    if (b.status === 'Concluído' && a.status !== 'Concluído') return -1;
-
-    const analysisA = analyzeDeadline(a.due_date, a.status);
-    const analysisB = analyzeDeadline(b.due_date, b.status);
-
-    const urgencyScore = (status: string) => {
-      if (status === 'overdue') return 3;
-      if (status === 'due-soon') return 2;
-      return 1;
-    };
-
-    const diffUrgency = urgencyScore(analysisB.status) - urgencyScore(analysisA.status);
-    if (diffUrgency !== 0) return diffUrgency;
-
-    const getTimestamp = (dateStr?: string) => {
-      if (!dateStr) return Infinity;
-      if (!dateStr.includes('T')) {
-        const parts = dateStr.split('-').map(Number);
-        return new Date(parts[0], parts[1] - 1, parts[2], 23, 59, 59).getTime();
-      }
-      return new Date(dateStr).getTime() || Infinity;
-    };
-    return getTimestamp(a.due_date) - getTimestamp(b.due_date);
-  });
+  const completionRate = memberDemands.length > 0 
+    ? Math.round((completedDemands.length / memberDemands.length) * 100) 
+    : 0;
 
   if (!selectedMember) {
     return (
@@ -112,10 +125,6 @@ export const MemberDemandsView: React.FC<MemberDemandsViewProps> = ({
       </div>
     );
   }
-
-  const completionRate = memberDemands.length > 0 
-    ? Math.round((completedDemands.length / memberDemands.length) * 100) 
-    : 0;
 
   return (
     <div className="space-y-6">
@@ -184,9 +193,14 @@ export const MemberDemandsView: React.FC<MemberDemandsViewProps> = ({
               {getInitials(selectedMember.name)}
             </div>
             <div>
-              <h2 className="text-xl font-bold text-white">
-                {selectedMember.name}
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-bold text-white">
+                  {selectedMember.name}
+                </h2>
+                <span className="text-[11px] font-semibold bg-white/10 text-slate-200 px-2.5 py-0.5 rounded-full border border-white/15">
+                  {memberDemands.length} {memberDemands.length === 1 ? 'demanda no total' : 'demandas no total'}
+                </span>
+              </div>
               <p className="text-slate-300 text-sm mt-0.5">
                 {selectedMember.role}
               </p>
@@ -237,19 +251,37 @@ export const MemberDemandsView: React.FC<MemberDemandsViewProps> = ({
             <div className="text-xl font-bold text-amber-300">{inReviewDemands.length}</div>
           </div>
 
-          <div className="bg-slate-800/80 rounded-xl p-3 border border-emerald-900/40">
+          {/* Clickable Concluídas Card (toggles the completed list) */}
+          <button
+            type="button"
+            onClick={() => setIsCompletedExpanded(prev => !prev)}
+            className="bg-slate-800/80 hover:bg-slate-800 rounded-xl p-3 border border-emerald-800/60 hover:border-emerald-500 transition-all text-left cursor-pointer group ring-1 ring-emerald-500/20 hover:ring-emerald-500/50"
+            title={isCompletedExpanded ? 'Clique para recolher a lista de concluídas' : 'Clique para exibir a lista de demandas concluídas'}
+          >
             <div className="flex items-center justify-between text-emerald-300 text-xs mb-1">
-              <span>Concluídas</span>
+              <span className="flex items-center gap-1 font-semibold">
+                <span>Concluídas</span>
+                {isCompletedExpanded ? (
+                  <ChevronUp className="w-3 h-3 text-emerald-400" />
+                ) : (
+                  <ChevronDown className="w-3 h-3 text-emerald-400" />
+                )}
+              </span>
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
             </div>
-            <div className="text-xl font-bold text-emerald-300">{completedDemands.length}</div>
-          </div>
+            <div className="flex items-baseline justify-between">
+              <span className="text-xl font-black text-emerald-300">{completedDemands.length}</span>
+              <span className="text-[10px] font-semibold text-emerald-400/90 group-hover:underline">
+                {isCompletedExpanded ? 'Recolher lista' : 'Ver lista'}
+              </span>
+            </div>
+          </button>
         </div>
 
         {/* Workload completion progress bar */}
         <div className="mt-4 pt-3 border-t border-slate-700/40 flex items-center justify-between gap-4 text-xs text-slate-300">
           <div className="flex items-center gap-2">
-            <span>Carga de trabalho ativa:</span>
+            <span>Carga ativa atual:</span>
             <span className="font-bold text-white">{activeDemands.length} demandas</span>
           </div>
           <div className="flex items-center gap-2 flex-1 max-w-xs">
@@ -264,226 +296,73 @@ export const MemberDemandsView: React.FC<MemberDemandsViewProps> = ({
         </div>
       </div>
 
-      {/* 3. Demand List for this Member - Prioritized by Urgency */}
-      <div>
-        <div className="flex items-center justify-between mb-3 px-1">
-          <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base">
-            Demandas de {selectedMember.name} ({memberDemands.length})
-          </h3>
-          <span className="text-xs text-slate-500 dark:text-slate-400">
-            Clique em qualquer demanda para abrir a janela completa
-          </span>
+      {/* 3. Filter Bar (Identical to Visão Geral: search, filters, Kanban vs Lista/Planilha switch) */}
+      <FilterBar
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        selectedCategory={selectedCategory}
+        onCategoryChange={setSelectedCategory}
+        selectedPriority={selectedPriority}
+        onPriorityChange={setSelectedPriority}
+        selectedStatus={selectedStatus}
+        onStatusChange={setSelectedStatus}
+        selectedAssignee=""
+        onAssigneeChange={() => {}}
+        displayMode={displayMode}
+        onDisplayModeChange={setDisplayMode}
+        onClearFilters={handleClearFilters}
+        hasActiveFilters={hasActiveFilters}
+        members={members}
+        totalFilteredCount={filteredMemberDemands.length}
+        hideAssigneeFilter={true}
+      />
+
+      {/* 4. Display Area: Kanban vs Lista / Planilha with collapsible completed list */}
+      {memberDemands.length === 0 ? (
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-12 text-center">
+          <div className="w-12 h-12 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 mx-auto flex items-center justify-center mb-3">
+            <CheckCircle2 className="w-6 h-6" />
+          </div>
+          <h4 className="font-semibold text-slate-800 dark:text-slate-200">
+            Tudo em dia para {selectedMember.name.split(' ')[0]}!
+          </h4>
+          <p className="text-slate-500 dark:text-slate-400 text-xs mt-1 max-w-sm mx-auto">
+            Nenhuma demanda atribuída a este integrante no momento. Clique no botão abaixo para adicionar uma tarefa.
+          </p>
+          <button
+            type="button"
+            onClick={() => onNewDemandForMember(selectedMember.id)}
+            className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-sky-600 hover:bg-sky-500 text-white transition cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Adicionar Demanda</span>
+          </button>
         </div>
-
-        {sortedDemands.length === 0 ? (
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-12 text-center">
-            <div className="w-12 h-12 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 mx-auto flex items-center justify-center mb-3">
-              <CheckCircle2 className="w-6 h-6" />
-            </div>
-            <h4 className="font-semibold text-slate-800 dark:text-slate-200">
-              Tudo em dia para {selectedMember.name.split(' ')[0]}!
-            </h4>
-            <p className="text-slate-500 dark:text-slate-400 text-xs mt-1 max-w-sm mx-auto">
-              Nenhuma demanda atribuída no momento. Clique no botão abaixo para adicionar uma tarefa para este integrante.
-            </p>
-            <button
-              type="button"
-              onClick={() => onNewDemandForMember(selectedMember.id)}
-              className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-sky-600 hover:bg-sky-500 text-white transition cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Adicionar Demanda</span>
-            </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {sortedDemands.map(demand => {
-              const deadline = analyzeDeadline(demand.due_date, demand.status);
-              const priorityInfo = getPriorityBadge(demand.priority);
-
-              return (
-                <div
-                  key={demand.id}
-                  onClick={() => onViewDemand(demand)}
-                  className={`bg-white dark:bg-slate-900 rounded-2xl p-4 border transition-all duration-200 shadow-xs hover:shadow-lg cursor-pointer group select-none ${
-                    deadline.status === 'overdue' && demand.status !== 'Concluído'
-                      ? 'border-red-300 dark:border-red-900/60 ring-1 ring-red-400/30'
-                      : deadline.status === 'due-soon' && demand.status !== 'Concluído'
-                      ? 'border-amber-300 dark:border-amber-900/60'
-                      : 'border-slate-200/90 dark:border-slate-800 hover:border-sky-500 dark:hover:border-sky-400'
-                  }`}
-                >
-                  {/* Top tags */}
-                  <div className="flex items-center justify-between gap-1.5 mb-2.5">
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold border ${getCategoryBadgeClass(demand.category)}`}>
-                      {getCategoryIcon(demand.category)}
-                      <span className="truncate max-w-[130px]">{demand.category}</span>
-                    </span>
-
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] border ${priorityInfo.className}`}>
-                      {priorityInfo.icon}
-                      <span>{priorityInfo.label}</span>
-                    </span>
-                  </div>
-
-                  {/* Explicit Clickable Title Button */}
-                  <div className="mb-1.5">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onViewDemand(demand);
-                      }}
-                      className="w-full text-left font-bold text-slate-900 dark:text-slate-100 text-sm leading-snug group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors cursor-pointer flex items-start justify-between gap-2 focus:outline-none"
-                      title="Clique para abrir detalhes completos desta demanda em uma janela"
-                    >
-                      <span className="flex-1 hover:underline">{demand.title}</span>
-                      <span 
-                        className="inline-flex items-center gap-1 text-[11px] font-bold text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/80 px-2 py-0.5 rounded-md border border-sky-200 dark:border-sky-800 shrink-0 group-hover:bg-sky-600 group-hover:text-white transition-all shadow-2xs"
-                        title="Abrir detalhes em uma janela"
-                      >
-                        <Maximize2 className="w-3 h-3 stroke-[2.5]" />
-                        <span>Abrir</span>
-                      </span>
-                    </button>
-                  </div>
-
-                  {/* Briefing */}
-                  {demand.description && (
-                    <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 mb-3 leading-relaxed">
-                      {demand.description}
-                    </p>
-                  )}
-
-                  {/* Atribuição específica desta pessoa na demanda */}
-                  {demand.assignee_id !== selectedMember.id ? (
-                    <div className="mb-3 p-2.5 rounded-xl bg-indigo-50/90 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800/80">
-                      <div className="flex items-center justify-between text-[11px] font-bold text-indigo-700 dark:text-indigo-300 mb-1">
-                        <span className="flex items-center gap-1">
-                          <Users className="w-3.5 h-3.5" />
-                          <span>Você é Co-responsável</span>
-                        </span>
-                        <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-medium">
-                          Principal: {members.find(m => m.id === demand.assignee_id)?.name.split(' ')[0] || 'Outro'}
-                        </span>
-                      </div>
-                      <div className="text-xs text-indigo-950 dark:text-indigo-100 font-medium bg-white/80 dark:bg-slate-900/80 p-2 rounded-lg border border-indigo-100 dark:border-indigo-900/50">
-                        <span className="font-bold text-[10px] text-indigo-500 uppercase tracking-wider block mb-0.5">
-                          Sua atribuição específica:
-                        </span>
-                        {demand.additional_assignees?.find(a => a.member_id === selectedMember.id)?.role_description || 'Apoio e execução técnica na demanda.'}
-                      </div>
-                    </div>
-                  ) : demand.additional_assignees && demand.additional_assignees.length > 0 ? (
-                    <div className="mb-3 p-2 rounded-xl bg-sky-50/80 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800/60 flex items-center justify-between text-xs text-sky-800 dark:text-sky-300">
-                      <span className="flex items-center gap-1.5 font-semibold text-[11px]">
-                        <Users className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
-                        <span>Você lidera +{demand.additional_assignees.length} co-responsável(is)</span>
-                      </span>
-                      <span className="text-[10px] text-sky-600 dark:text-sky-400 font-medium">
-                        Demanda em equipe
-                      </span>
-                    </div>
-                  ) : null}
-
-                  {/* Solicitante */}
-                  <div className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300 mb-3 bg-slate-50 dark:bg-slate-800/60 p-2 rounded-xl border border-slate-100 dark:border-slate-800">
-                    <Send className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400 shrink-0" />
-                    <span className="text-[11px] text-slate-400">Entregar para:</span>
-                    <span className="font-semibold text-[11px] truncate">{demand.requester}</span>
-                  </div>
-
-                  {/* Deadline box */}
-                  <div className="mb-3">
-                    <div
-                      className={`flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg border ${
-                        deadline.status === 'overdue'
-                          ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/50 dark:text-red-300 dark:border-red-900/50 font-semibold'
-                          : deadline.status === 'due-soon'
-                          ? 'bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-900/50 font-medium'
-                          : deadline.status === 'completed'
-                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900/50'
-                          : 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800/50 dark:text-slate-300 dark:border-slate-700'
-                      }`}
-                    >
-                      <div className="flex items-center gap-1.5">
-                        {deadline.status === 'overdue' && <AlertTriangle className="w-3.5 h-3.5 text-red-600 dark:text-red-400 shrink-0" />}
-                        {deadline.status === 'due-soon' && <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />}
-                        {deadline.status === 'on-track' && <Calendar className="w-3.5 h-3.5 text-slate-500 shrink-0" />}
-                        <span className="text-[11px] font-medium">{deadline.badgeLabel}</span>
-                      </div>
-                      <span className="text-[11px]">{deadline.relativeText}</span>
-                    </div>
-                  </div>
-
-                  {/* Files and Status Changer */}
-                  <div 
-                    className="flex items-center justify-between pt-2.5 border-t border-slate-100 dark:border-slate-800/80"
-                    onClick={e => e.stopPropagation()}
-                  >
-                    <select
-                      value={demand.status}
-                      onChange={e => onUpdateStatus(demand.id, e.target.value as DemandStatus)}
-                      className={`text-xs font-semibold rounded-lg px-2 py-1 border transition-all cursor-pointer ${
-                        demand.status === 'Concluído'
-                          ? 'bg-emerald-50 text-emerald-800 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'
-                          : demand.status === 'Em Produção'
-                          ? 'bg-blue-50 text-blue-800 border-blue-300 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800'
-                          : demand.status === 'Em Revisão'
-                          ? 'bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800'
-                          : 'bg-slate-100 text-slate-800 border-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700'
-                      }`}
-                    >
-                      <option value="A Fazer">A Fazer</option>
-                      <option value="Em Produção">Em Produção</option>
-                      <option value="Em Revisão">Em Revisão</option>
-                      <option value="Concluído">Concluído</option>
-                    </select>
-
-                    <div className="flex items-center gap-1">
-                      {demand.files_link && (
-                        <a
-                          href={demand.files_link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="p-1.5 rounded-lg text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950/50 transition cursor-pointer"
-                          title="Abrir arquivos de entrega"
-                        >
-                          <ExternalLink className="w-4 h-4" />
-                        </a>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => onViewDemand(demand)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950/50 transition cursor-pointer"
-                        title="Abrir Janela da Demanda"
-                      >
-                        <Maximize2 className="w-4 h-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onEditDemand(demand)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
-                        title="Editar"
-                      >
-                        <Edit3 className="w-4 h-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onDeleteDemand(demand.id)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition cursor-pointer"
-                        title="Excluir"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      ) : displayMode === 'kanban' ? (
+        <KanbanBoard
+          demands={filteredMemberDemands}
+          members={members}
+          onUpdateStatus={onUpdateStatus}
+          onEditDemand={onEditDemand}
+          onDeleteDemand={onDeleteDemand}
+          onViewDemand={onViewDemand}
+          collapsibleCompleted={true}
+          isCompletedExpanded={isCompletedExpanded}
+          onToggleCompletedExpanded={() => setIsCompletedExpanded(prev => !prev)}
+        />
+      ) : (
+        <ListView
+          demands={filteredMemberDemands}
+          members={members}
+          onUpdateStatus={onUpdateStatus}
+          onEditDemand={onEditDemand}
+          onDeleteDemand={onDeleteDemand}
+          onViewDemand={onViewDemand}
+          collapsibleCompleted={true}
+          isCompletedExpanded={isCompletedExpanded}
+          onToggleCompletedExpanded={() => setIsCompletedExpanded(prev => !prev)}
+        />
+      )}
     </div>
   );
 };

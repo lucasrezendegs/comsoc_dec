@@ -9,7 +9,11 @@ import {
   Calendar,
   Send,
   User,
-  Maximize2
+  Maximize2,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  Eye
 } from 'lucide-react';
 import { Demand, DemandPriority, DemandStatus, TeamMember } from '../types';
 import { analyzeDeadline, formatBrazilianDate } from '../utils/dateUtils';
@@ -27,6 +31,9 @@ interface ListViewProps {
   onEditDemand: (demand: Demand) => void;
   onDeleteDemand: (id: string) => void;
   onViewDemand: (demand: Demand) => void;
+  collapsibleCompleted?: boolean;
+  isCompletedExpanded?: boolean;
+  onToggleCompletedExpanded?: () => void;
 }
 
 type SortField = 'due_date' | 'priority' | 'status' | 'title';
@@ -38,7 +45,23 @@ export const ListView: React.FC<ListViewProps> = ({
   onEditDemand,
   onDeleteDemand,
   onViewDemand,
+  collapsibleCompleted = false,
+  isCompletedExpanded: controlledCompletedExpanded,
+  onToggleCompletedExpanded,
 }) => {
+  const [internalCompletedExpanded, setInternalCompletedExpanded] = useState(false);
+  const completedExpanded = controlledCompletedExpanded !== undefined
+    ? controlledCompletedExpanded
+    : internalCompletedExpanded;
+
+  const toggleCompleted = () => {
+    if (onToggleCompletedExpanded) {
+      onToggleCompletedExpanded();
+    } else {
+      setInternalCompletedExpanded(prev => !prev);
+    }
+  };
+
   const [sortField, setSortField] = useState<SortField>('due_date');
   const [sortAsc, setSortAsc] = useState<boolean>(true);
 
@@ -89,78 +112,26 @@ export const ListView: React.FC<ListViewProps> = ({
     return sortAsc ? diff : -diff;
   });
 
-  return (
-    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse text-xs">
-          <thead>
-            <tr className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 font-semibold uppercase tracking-wider text-[11px]">
-              <th 
-                onClick={() => handleSort('title')}
-                className="py-3 px-4 cursor-pointer hover:text-slate-900 dark:hover:text-white transition"
-              >
-                <div className="flex items-center gap-1.5">
-                  <span>Tarefa (Clique p/ Abrir Janela)</span>
-                  <ArrowUpDown className="w-3 h-3 text-slate-400" />
-                </div>
-              </th>
-              <th className="py-3 px-3">Categoria</th>
-              <th className="py-3 px-3">Entregar Para (Solicitante)</th>
-              <th className="py-3 px-3">Responsável</th>
-              <th 
-                onClick={() => handleSort('due_date')}
-                className="py-3 px-3 cursor-pointer hover:text-slate-900 dark:hover:text-white transition min-w-[150px]"
-              >
-                <div className="flex items-center gap-1.5">
-                  <span>Prazo de Entrega</span>
-                  <ArrowUpDown className="w-3 h-3 text-slate-400" />
-                </div>
-              </th>
-              <th 
-                onClick={() => handleSort('priority')}
-                className="py-3 px-3 cursor-pointer hover:text-slate-900 dark:hover:text-white transition"
-              >
-                <div className="flex items-center gap-1.5">
-                  <span>Prioridade</span>
-                  <ArrowUpDown className="w-3 h-3 text-slate-400" />
-                </div>
-              </th>
-              <th 
-                onClick={() => handleSort('status')}
-                className="py-3 px-3 cursor-pointer hover:text-slate-900 dark:hover:text-white transition min-w-[140px]"
-              >
-                <div className="flex items-center gap-1.5">
-                  <span>Status</span>
-                  <ArrowUpDown className="w-3 h-3 text-slate-400" />
-                </div>
-              </th>
-              <th className="py-3 px-3 text-center">Arquivos</th>
-              <th className="py-3 px-4 text-right">Ações</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-            {sortedDemands.length === 0 ? (
-              <tr>
-                <td colSpan={9} className="py-12 text-center text-slate-400 dark:text-slate-500">
-                  Nenhuma demanda encontrada com os filtros selecionados.
-                </td>
-              </tr>
-            ) : (
-              sortedDemands.map(demand => {
-                const assignee = memberMap.get(demand.assignee_id);
-                const deadline = analyzeDeadline(demand.due_date, demand.status);
-                const priorityInfo = getPriorityBadge(demand.priority);
+  const activeDemands = sortedDemands.filter(d => d.status !== 'Concluído');
+  const completedDemands = sortedDemands.filter(d => d.status === 'Concluído');
 
-                return (
-                  <tr
-                    key={demand.id}
-                    onClick={() => onViewDemand(demand)}
-                    className={`cursor-pointer hover:bg-slate-50/90 dark:hover:bg-slate-800/50 transition-colors group select-none ${
-                      deadline.status === 'overdue' && demand.status !== 'Concluído'
-                        ? 'bg-red-50/20 dark:bg-red-950/10'
-                        : ''
-                    }`}
-                  >
+  const renderDemandRow = (demand: Demand) => {
+    const assignee = memberMap.get(demand.assignee_id);
+    const deadline = analyzeDeadline(demand.due_date, demand.status);
+    const priorityInfo = getPriorityBadge(demand.priority);
+
+    return (
+      <tr
+        key={demand.id}
+        onClick={() => onViewDemand(demand)}
+        className={`cursor-pointer hover:bg-slate-50/90 dark:hover:bg-slate-800/50 transition-colors group select-none ${
+          demand.status === 'Concluído'
+            ? 'bg-emerald-50/15 dark:bg-emerald-950/10'
+            : deadline.status === 'overdue'
+            ? 'bg-red-50/20 dark:bg-red-950/10'
+            : ''
+        }`}
+      >
                     {/* Tarefa & Briefing with explicit clickable button */}
                     <td className="py-3 px-4 max-w-xs">
                       <button
@@ -347,8 +318,122 @@ export const ListView: React.FC<ListViewProps> = ({
                       </div>
                     </td>
                   </tr>
-                );
-              })
+    );
+  };
+
+  return (
+    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 font-semibold uppercase tracking-wider text-[11px]">
+              <th 
+                onClick={() => handleSort('title')}
+                className="py-3 px-4 cursor-pointer hover:text-slate-900 dark:hover:text-white transition"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span>Tarefa (Clique p/ Abrir Janela)</span>
+                  <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                </div>
+              </th>
+              <th className="py-3 px-3">Categoria</th>
+              <th className="py-3 px-3">Entregar Para (Solicitante)</th>
+              <th className="py-3 px-3">Responsável</th>
+              <th 
+                onClick={() => handleSort('due_date')}
+                className="py-3 px-3 cursor-pointer hover:text-slate-900 dark:hover:text-white transition min-w-[150px]"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span>Prazo de Entrega</span>
+                  <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                </div>
+              </th>
+              <th 
+                onClick={() => handleSort('priority')}
+                className="py-3 px-3 cursor-pointer hover:text-slate-900 dark:hover:text-white transition"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span>Prioridade</span>
+                  <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                </div>
+              </th>
+              <th 
+                onClick={() => handleSort('status')}
+                className="py-3 px-3 cursor-pointer hover:text-slate-900 dark:hover:text-white transition min-w-[140px]"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span>Status</span>
+                  <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                </div>
+              </th>
+              <th className="py-3 px-3 text-center">Arquivos</th>
+              <th className="py-3 px-4 text-right">Ações</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+            {sortedDemands.length === 0 ? (
+              <tr>
+                <td colSpan={9} className="py-12 text-center text-slate-400 dark:text-slate-500">
+                  Nenhuma demanda encontrada com os filtros selecionados.
+                </td>
+              </tr>
+            ) : collapsibleCompleted ? (
+              <>
+                {/* Demandas Ativas */}
+                {activeDemands.length === 0 && completedDemands.length > 0 && !completedExpanded && (
+                  <tr>
+                    <td colSpan={9} className="py-8 text-center text-slate-500 dark:text-slate-400">
+                      Todas as demandas desta pessoa estão concluídas! Clique no balãozinho abaixo para visualizá-las.
+                    </td>
+                  </tr>
+                )}
+                {activeDemands.map(demand => renderDemandRow(demand))}
+
+                {/* Linha Divisória Expansível de Concluídas */}
+                {completedDemands.length > 0 && (
+                  <>
+                    <tr className="bg-emerald-50/80 dark:bg-emerald-950/40 border-y-2 border-emerald-300 dark:border-emerald-800">
+                      <td colSpan={9} className="py-2.5 px-4">
+                        <div
+                          onClick={toggleCompleted}
+                          className="flex items-center justify-between cursor-pointer select-none group"
+                        >
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                            <span className="font-bold text-xs text-emerald-950 dark:text-emerald-100">
+                              Demandas Concluídas
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleCompleted();
+                              }}
+                              className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-emerald-200 hover:bg-emerald-300 text-emerald-900 dark:bg-emerald-800 dark:hover:bg-emerald-700 dark:text-emerald-100 shadow-xs group-hover:scale-105 transition ring-2 ring-emerald-400/50 cursor-pointer"
+                              title={completedExpanded ? "Clique no balãozinho para ocultar a lista" : "Clique no balãozinho de 'concluído' para exibir a lista toda"}
+                            >
+                              <span>{completedDemands.length}</span>
+                              {completedExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                            </button>
+                            <span className="text-[11px] text-emerald-700/90 dark:text-emerald-300/80 hidden sm:inline font-medium">
+                              {completedExpanded
+                                ? '(visível • clique no balãozinho para ocultar)'
+                                : '(oculto • clique no balãozinho para ver a lista toda)'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1 text-emerald-700 dark:text-emerald-300 text-xs font-semibold">
+                            <span>{completedExpanded ? 'Ocultar concluídas' : `Exibir ${completedDemands.length} concluídas`}</span>
+                            {completedExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                    {completedExpanded && completedDemands.map(demand => renderDemandRow(demand))}
+                  </>
+                )}
+              </>
+            ) : (
+              sortedDemands.map(demand => renderDemandRow(demand))
             )}
           </tbody>
         </table>
