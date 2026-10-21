@@ -38,7 +38,7 @@ interface DemandDetailModalProps {
   onDeleteDemand: (id: string) => void;
 }
 
-const STATUS_OPTIONS: DemandStatus[] = ['A Fazer', 'Em Produção', 'Em Revisão', 'Concluído'];
+const STATUS_OPTIONS: DemandStatus[] = ['A Fazer', 'Em Produção', 'Em Revisão', 'Atrasado', 'Concluído'];
 
 export const DemandDetailModal: React.FC<DemandDetailModalProps> = ({
   demand,

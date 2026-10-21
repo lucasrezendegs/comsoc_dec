@@ -132,7 +132,7 @@ describe('whatsappExport logic tests', () => {
     assert.ok(text.includes('Beatriz Lima *(Co-responsável)* - _Tratar fotos para o boletim_'));
 
     const batch = generateBatchWhatsAppReport([demand], members);
-    assert.ok(batch.includes('Carlos Ramos (+ Amanda, Beatriz)'));
+    assert.ok(batch.includes('Carlos Ramos (+ Amanda Foto, Beatriz Lima)'));
   });
 });
 

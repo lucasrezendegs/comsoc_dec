@@ -8,7 +8,7 @@ export type DemandCategory =
 
 export type DemandPriority = 'Baixa' | 'Média' | 'Alta' | 'Urgente';
 
-export type DemandStatus = 'A Fazer' | 'Em Produção' | 'Em Revisão' | 'Concluído';
+export type DemandStatus = 'A Fazer' | 'Em Produção' | 'Em Revisão' | 'Concluído' | 'Atrasado';
 
 export interface TeamMember {
   id: string;

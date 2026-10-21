@@ -158,8 +158,8 @@ export const MemberDemandsView: React.FC<MemberDemandsViewProps> = ({
                   {getInitials(member.name)}
                 </div>
                 <div className="flex flex-col">
-                  <span className="font-semibold text-xs leading-none">
-                    {member.name.split(' ')[0]} {member.name.split(' ')[1] || ''}
+                  <span className="font-semibold text-xs leading-none whitespace-nowrap">
+                    {member.name}
                   </span>
                   <span className={`text-[11px] truncate max-w-[120px] mt-0.5 ${
                     isSelected ? 'text-slate-300 dark:text-slate-400' : 'text-slate-400'
@@ -324,7 +324,7 @@ export const MemberDemandsView: React.FC<MemberDemandsViewProps> = ({
             <CheckCircle2 className="w-6 h-6" />
           </div>
           <h4 className="font-semibold text-slate-800 dark:text-slate-200">
-            Tudo em dia para {selectedMember.name.split(' ')[0]}!
+            Tudo em dia para {selectedMember.name}!
           </h4>
           <p className="text-slate-500 dark:text-slate-400 text-xs mt-1 max-w-sm mx-auto">
             Nenhuma demanda atribuída a este integrante no momento. Clique no botão abaixo para adicionar uma tarefa.

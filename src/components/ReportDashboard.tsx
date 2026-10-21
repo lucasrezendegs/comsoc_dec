@@ -548,7 +548,7 @@ export const ReportDashboard: React.FC<ReportDashboardProps> = ({
               <option value="all">Todos Integrantes</option>
               {members.map(m => (
                 <option key={m.id} value={m.id}>
-                  {m.name.split(' ')[0]} ({m.role.split('/')[0].trim()})
+                  {m.name} ({m.role.split('/')[0].trim()})
                 </option>
               ))}
             </select>

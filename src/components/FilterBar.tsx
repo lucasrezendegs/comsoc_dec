@@ -53,7 +53,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   ];
 
   const priorities: DemandPriority[] = ['Urgente', 'Alta', 'Média', 'Baixa'];
-  const statuses: DemandStatus[] = ['A Fazer', 'Em Produção', 'Em Revisão', 'Concluído'];
+  const statuses: DemandStatus[] = ['A Fazer', 'Em Produção', 'Em Revisão', 'Atrasado', 'Concluído'];
 
   return (
     <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-4 mb-6 shadow-sm">

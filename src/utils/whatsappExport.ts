@@ -124,7 +124,7 @@ export function generateBatchWhatsAppReport(
       let teamText = member?.name || 'A definir';
       if (d.additional_assignees && d.additional_assignees.length > 0) {
         const coNames = d.additional_assignees
-          .map(a => memberMap.get(a.member_id)?.name.split(' ')[0])
+          .map(a => memberMap.get(a.member_id)?.name)
           .filter(Boolean)
           .join(', ');
         if (coNames) {

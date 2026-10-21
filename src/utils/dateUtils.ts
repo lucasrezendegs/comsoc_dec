@@ -52,6 +52,16 @@ export function analyzeDeadline(dueDate?: string, currentStatus?: DemandStatus):
     };
   }
 
+  if (currentStatus === 'Atrasado') {
+    return {
+      status: 'overdue',
+      badgeLabel: 'Atrasado',
+      relativeText: 'Prazo expirado',
+      formattedDate: formatBrazilianDate(dueDate),
+      isUrgentNotice: true,
+    };
+  }
+
   if (!dueDate || dueDate.trim() === '') {
     return {
       status: 'on-track',

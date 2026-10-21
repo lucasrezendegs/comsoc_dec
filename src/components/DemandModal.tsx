@@ -38,7 +38,7 @@ const CATEGORIES: DemandCategory[] = [
 ];
 
 const PRIORITIES: DemandPriority[] = ['Baixa', 'Média', 'Alta', 'Urgente'];
-const STATUSES: DemandStatus[] = ['A Fazer', 'Em Produção', 'Em Revisão', 'Concluído'];
+const STATUSES: DemandStatus[] = ['A Fazer', 'Em Produção', 'Em Revisão', 'Atrasado', 'Concluído'];
 
 export const DemandModal: React.FC<DemandModalProps> = ({
   isOpen,

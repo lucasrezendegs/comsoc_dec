@@ -75,6 +75,7 @@ export const ListView: React.FC<ListViewProps> = ({
   };
 
   const statusWeights: Record<DemandStatus, number> = {
+    'Atrasado': 0,
     'A Fazer': 1,
     'Em Produção': 2,
     'Em Revisão': 3,
@@ -196,7 +197,7 @@ export const ListView: React.FC<ListViewProps> = ({
                             )}
                           </div>
                           <span className="text-slate-700 dark:text-slate-300 font-medium whitespace-nowrap text-xs">
-                            {assignee.name.split(' ')[0]} {assignee.name.split(' ')[1] || ''}
+                            {assignee.name}
                             {demand.additional_assignees && demand.additional_assignees.length > 0 ? (
                               <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold ml-1">
                                 (+{demand.additional_assignees.length})
@@ -255,7 +256,9 @@ export const ListView: React.FC<ListViewProps> = ({
                         value={demand.status}
                         onChange={e => onUpdateStatus(demand.id, e.target.value as DemandStatus)}
                         className={`text-xs font-semibold rounded-lg px-2 py-1 border transition-all cursor-pointer ${
-                          demand.status === 'Concluído'
+                          demand.status === 'Atrasado'
+                            ? 'bg-red-50 text-red-800 border-red-300 dark:bg-red-950/60 dark:text-red-300 dark:border-red-800'
+                            : demand.status === 'Concluído'
                             ? 'bg-emerald-50 text-emerald-800 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'
                             : demand.status === 'Em Produção'
                             ? 'bg-blue-50 text-blue-800 border-blue-300 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800'
@@ -267,6 +270,7 @@ export const ListView: React.FC<ListViewProps> = ({
                         <option value="A Fazer">A Fazer</option>
                         <option value="Em Produção">Em Produção</option>
                         <option value="Em Revisão">Em Revisão</option>
+                        <option value="Atrasado">Atrasado</option>
                         <option value="Concluído">Concluído</option>
                       </select>
                     </td>

@@ -105,6 +105,12 @@ export function getStatusBadge(status: DemandStatus) {
         className: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-200 border-emerald-300 dark:border-emerald-800',
         icon: React.createElement(CheckCircle2, { className: "w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" }),
       };
+    case 'Atrasado':
+      return {
+        label: 'Atrasado',
+        className: 'bg-red-100 text-red-800 dark:bg-red-950/80 dark:text-red-200 border-red-300 dark:border-red-800',
+        icon: React.createElement(AlertTriangle, { className: "w-3.5 h-3.5 text-red-600 dark:text-red-400" }),
+      };
   }
 }
 
