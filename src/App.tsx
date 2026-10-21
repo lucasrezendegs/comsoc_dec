@@ -194,7 +194,7 @@ function AppContent() {
   };
 
   const handleSaveDemand = async (demand: Demand) => {
-    await upsertDemand(demand);
+    const res = await upsertDemand(demand);
     setDemands(prev => {
       const idx = prev.findIndex(d => d.id === demand.id);
       if (idx >= 0) {
@@ -205,10 +205,14 @@ function AppContent() {
       return [demand, ...prev];
     });
     setSelectedDemandForDetail(prev => prev && prev.id === demand.id ? demand : prev);
+    showToast(res.message, 'success');
+    if (res.warning) {
+      setTimeout(() => showToast(res.warning!, 'info'), 2500);
+    }
   };
 
   const handleUpdateStatus = async (id: string, newStatus: DemandStatus) => {
-    await quickUpdateStatus(id, newStatus);
+    const res = await quickUpdateStatus(id, newStatus);
     const nowIso = new Date().toISOString();
     setDemands(prev =>
       prev.map(d => {
@@ -220,7 +224,7 @@ function AppContent() {
       })
     );
     setSelectedDemandForDetail(prev => prev && prev.id === id ? { ...prev, status: newStatus } : prev);
-    showToast(`Status atualizado para "${newStatus}"!`, 'info');
+    showToast(res.message, 'info');
   };
 
   const handleDeleteDemand = async (id: string) => {
@@ -228,13 +232,13 @@ function AppContent() {
     if (window.confirm(`Deseja realmente excluir a demanda "${target?.title || 'selecionada'}"?`)) {
       await removeDemand(id);
       setDemands(prev => prev.filter(d => d.id !== id));
-      showToast('Demanda excluída com sucesso.', 'info');
+      showToast('Demanda excluída do banco de dados com sucesso.', 'info');
     }
   };
 
   // Team Member CRUD Handlers
   const handleSaveMember = async (member: TeamMember) => {
-    await upsertMember(member);
+    const res = await upsertMember(member);
     setMembers(prev => {
       const idx = prev.findIndex(m => m.id === member.id);
       if (idx >= 0) {
@@ -244,6 +248,7 @@ function AppContent() {
       }
       return [...prev, member];
     });
+    showToast(res.message, 'success');
   };
 
   const handleDeleteMember = async (id: string) => {
@@ -387,16 +392,17 @@ function AppContent() {
             <span>Seção de Comunicação Social</span>
           </div>
           <div className="flex items-center gap-3 text-[11px]">
-            <span className="flex items-center gap-1.5">
-              <span className={`w-2 h-2 rounded-full ${isSupabaseConnected ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-              {isSupabaseConnected ? 'Banco Supabase Ativo' : 'Armazenamento Local Ativo'}
+            <span className="flex items-center gap-1.5" title="Todas as alterações são salvas permanentemente no banco de dados">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="font-medium text-slate-700 dark:text-slate-300">Banco de Dados Ativo:</span>
+              <span>{isSupabaseConnected ? 'Servidor + Supabase Nuvem' : 'Servidor Permanente'}</span>
             </span>
             <span>•</span>
             <button
               onClick={() => setIsSupabaseModalOpen(true)}
-              className="text-sky-600 dark:text-sky-400 hover:underline"
+              className="text-sky-600 dark:text-sky-400 hover:underline cursor-pointer"
             >
-              Configurar Banco
+              Configurações do Banco
             </button>
           </div>
         </div>

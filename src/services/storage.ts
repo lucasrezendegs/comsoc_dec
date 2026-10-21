@@ -60,7 +60,6 @@ export function getActiveProfileId(): string {
   try {
     const saved = localStorage.getItem(LOCAL_KEY_ACTIVE_PROFILE);
     if (saved) return saved;
-    // Default to the first member
     const members = getLocalMembers();
     return members[0]?.id || '';
   } catch {
@@ -99,9 +98,51 @@ export function setStoredTheme(theme: 'light' | 'dark'): void {
   }
 }
 
+// ======================== SERVER API HELPERS ========================
+
+export async function checkServerHealth(): Promise<boolean> {
+  try {
+    const res = await fetch('/api/health');
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function getServerDatabaseStatus(): Promise<{
+  status: string;
+  type?: string;
+  membersCount?: number;
+  demandsCount?: number;
+  updatedAt?: string;
+} | null> {
+  try {
+    const res = await fetch('/api/database/status');
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
 // ======================== UNIFIED DATA ACCESS ========================
 
-export async function fetchAllTeamMembers(): Promise<{ members: TeamMember[]; isSupabase: boolean }> {
+export async function fetchAllTeamMembers(): Promise<{ members: TeamMember[]; isSupabase: boolean; source: 'server' | 'supabase' | 'local' }> {
+  // 1. Try backend server database first
+  try {
+    const serverRes = await fetch('/api/team-members');
+    if (serverRes.ok) {
+      const serverData = await serverRes.json();
+      if (Array.isArray(serverData) && serverData.length > 0) {
+        saveLocalMembers(serverData);
+        return { members: serverData as TeamMember[], isSupabase: false, source: 'server' };
+      }
+    }
+  } catch (err) {
+    console.warn('Servidor local indisponível para membros, tentando Supabase/Local:', err);
+  }
+
+  // 2. Try Supabase if connected
   const supabase = getSupabaseClient();
   if (supabase) {
     try {
@@ -110,21 +151,38 @@ export async function fetchAllTeamMembers(): Promise<{ members: TeamMember[]; is
         .select('*')
         .order('name', { ascending: true });
 
-      if (!error && data) {
-        // Cache to local as backup
+      if (!error && data && data.length > 0) {
         saveLocalMembers(data);
-        return { members: data as TeamMember[], isSupabase: true };
+        return { members: data as TeamMember[], isSupabase: true, source: 'supabase' };
       }
-      console.warn('Falha na consulta de membros no Supabase, caindo para local:', error);
+      if (error) {
+        console.warn('Falha na consulta de membros no Supabase:', error);
+      }
     } catch (e) {
       console.warn('Exceção ao buscar membros no Supabase:', e);
     }
   }
 
-  return { members: getLocalMembers(), isSupabase: false };
+  // 3. Fallback to LocalStorage
+  return { members: getLocalMembers(), isSupabase: false, source: 'local' };
 }
 
-export async function fetchAllDemands(): Promise<{ demands: Demand[]; isSupabase: boolean }> {
+export async function fetchAllDemands(): Promise<{ demands: Demand[]; isSupabase: boolean; source: 'server' | 'supabase' | 'local' }> {
+  // 1. Try backend server database first
+  try {
+    const serverRes = await fetch('/api/demands');
+    if (serverRes.ok) {
+      const serverData = await serverRes.json();
+      if (Array.isArray(serverData) && serverData.length > 0) {
+        saveLocalDemands(serverData);
+        return { demands: serverData as Demand[], isSupabase: false, source: 'server' };
+      }
+    }
+  } catch (err) {
+    console.warn('Servidor local indisponível para demandas, tentando Supabase/Local:', err);
+  }
+
+  // 2. Try Supabase if connected
   const supabase = getSupabaseClient();
   if (supabase) {
     try {
@@ -133,20 +191,24 @@ export async function fetchAllDemands(): Promise<{ demands: Demand[]; isSupabase
         .select('*')
         .order('due_date', { ascending: true });
 
-      if (!error && data) {
+      if (!error && data && data.length > 0) {
         saveLocalDemands(data);
-        return { demands: data as Demand[], isSupabase: true };
+        return { demands: data as Demand[], isSupabase: true, source: 'supabase' };
       }
-      console.warn('Falha na consulta de demandas no Supabase, caindo para local:', error);
+      if (error) {
+        console.warn('Falha na consulta de demandas no Supabase:', error);
+      }
     } catch (e) {
       console.warn('Exceção ao buscar demandas no Supabase:', e);
     }
   }
 
-  return { demands: getLocalDemands(), isSupabase: false };
+  // 3. Fallback to LocalStorage
+  return { demands: getLocalDemands(), isSupabase: false, source: 'local' };
 }
 
-export async function upsertMember(member: TeamMember): Promise<void> {
+export async function upsertMember(member: TeamMember): Promise<{ success: boolean; message: string }> {
+  // 1. Immediate local update
   const localList = getLocalMembers();
   const index = localList.findIndex(m => m.id === member.id);
   if (index >= 0) {
@@ -156,10 +218,28 @@ export async function upsertMember(member: TeamMember): Promise<void> {
   }
   saveLocalMembers(localList);
 
+  let savedToServer = false;
+  let savedToSupabase = false;
+
+  // 2. Save to Server Database
+  try {
+    const res = await fetch('/api/team-members', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(member),
+    });
+    if (res.ok) {
+      savedToServer = true;
+    }
+  } catch (err) {
+    console.warn('Erro ao salvar membro no servidor:', err);
+  }
+
+  // 3. Save to Supabase if configured
   const supabase = getSupabaseClient();
   if (supabase) {
     try {
-      await supabase.from('team_members').upsert({
+      const { error } = await supabase.from('team_members').upsert({
         id: member.id,
         name: member.name,
         role: member.role,
@@ -167,29 +247,48 @@ export async function upsertMember(member: TeamMember): Promise<void> {
         email: member.email || null,
         created_at: member.created_at || new Date().toISOString(),
       });
+      if (!error) {
+        savedToSupabase = true;
+      } else {
+        console.error('Erro ao sincronizar membro com Supabase:', error);
+      }
     } catch (err) {
-      console.error('Erro ao sincronizar membro com Supabase:', err);
+      console.error('Exceção ao sincronizar membro com Supabase:', err);
     }
   }
+
+  return {
+    success: true,
+    message: savedToSupabase 
+      ? 'Membro salvo no banco de dados e sincronizado na nuvem!' 
+      : 'Membro salvo no banco de dados com sucesso!',
+  };
 }
 
 export async function removeMember(id: string): Promise<void> {
   const localList = getLocalMembers().filter(m => m.id !== id);
   saveLocalMembers(localList);
 
+  try {
+    await fetch(`/api/team-members/${id}`, { method: 'DELETE' });
+  } catch (err) {
+    console.warn('Erro ao remover membro no servidor:', err);
+  }
+
   const supabase = getSupabaseClient();
   if (supabase) {
     try {
-      await supabase.from('team_members').delete().eq('id', id);
+      const { error } = await supabase.from('team_members').delete().eq('id', id);
+      if (error) {
+        console.error('Erro ao remover membro do Supabase:', error);
+      }
     } catch (err) {
-      console.error('Erro ao remover membro do Supabase:', err);
+      console.error('Exceção ao remover membro do Supabase:', err);
     }
   }
 }
 
-export async function upsertDemand(demand: Demand): Promise<void> {
-  const localList = getLocalDemands();
-  const index = localList.findIndex(d => d.id === demand.id);
+export async function upsertDemand(demand: Demand): Promise<{ success: boolean; message: string; warning?: string }> {
   const nowIso = new Date().toISOString();
   const updatedDemand: Demand = {
     ...demand,
@@ -199,6 +298,9 @@ export async function upsertDemand(demand: Demand): Promise<void> {
       : undefined,
   };
 
+  // 1. Immediate local storage
+  const localList = getLocalDemands();
+  const index = localList.findIndex(d => d.id === demand.id);
   if (index >= 0) {
     localList[index] = updatedDemand;
   } else {
@@ -206,31 +308,95 @@ export async function upsertDemand(demand: Demand): Promise<void> {
   }
   saveLocalDemands(localList);
 
+  let savedToServer = false;
+  let savedToSupabase = false;
+  let supabaseWarning = '';
+
+  // 2. Save to persistent Server Database
+  try {
+    const res = await fetch('/api/demands', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updatedDemand),
+    });
+    if (res.ok) {
+      savedToServer = true;
+    } else {
+      console.warn('Servidor retornou status não-ok ao salvar demanda:', res.status);
+    }
+  } catch (err) {
+    console.warn('Erro de rede ao salvar demanda no servidor:', err);
+  }
+
+  // 3. Save to Supabase with robust error handling and column fallback
   const supabase = getSupabaseClient();
   if (supabase) {
+    const fullPayload: Record<string, any> = {
+      id: updatedDemand.id,
+      title: updatedDemand.title,
+      description: updatedDemand.description || '',
+      assignee_id: updatedDemand.assignee_id || null,
+      additional_assignees: updatedDemand.additional_assignees || [],
+      requester: updatedDemand.requester,
+      due_date: updatedDemand.due_date,
+      category: updatedDemand.category,
+      priority: updatedDemand.priority,
+      status: updatedDemand.status,
+      files_link: updatedDemand.files_link || '',
+      created_at: updatedDemand.created_at || nowIso,
+      updated_at: updatedDemand.updated_at,
+      completed_at: updatedDemand.completed_at || null,
+    };
+
     try {
-      await supabase.from('demands').upsert({
-        id: updatedDemand.id,
-        title: updatedDemand.title,
-        description: updatedDemand.description || '',
-        assignee_id: updatedDemand.assignee_id || null,
-        requester: updatedDemand.requester,
-        due_date: updatedDemand.due_date,
-        category: updatedDemand.category,
-        priority: updatedDemand.priority,
-        status: updatedDemand.status,
-        files_link: updatedDemand.files_link || '',
-        created_at: updatedDemand.created_at || nowIso,
-        updated_at: updatedDemand.updated_at,
-        completed_at: updatedDemand.completed_at,
-      });
-    } catch (err) {
-      console.error('Erro ao salvar demanda no Supabase:', err);
+      const { error } = await supabase.from('demands').upsert(fullPayload);
+      if (!error) {
+        savedToSupabase = true;
+      } else {
+        console.warn('Tentativa com payload completo falhou no Supabase, tentando compatibilidade:', error);
+        
+        // Handle missing columns or constraints gracefully
+        const fallbackPayload = { ...fullPayload };
+        const errMsg = error.message.toLowerCase();
+
+        // If completed_at or additional_assignees missing in user's table, omit them
+        if (errMsg.includes('completed_at') || errMsg.includes('column')) {
+          delete fallbackPayload.completed_at;
+          supabaseWarning = 'A coluna completed_at ainda não existe no seu Supabase. Execute o script de atualização no SQL Editor.';
+        }
+        if (errMsg.includes('additional_assignees')) {
+          delete fallbackPayload.additional_assignees;
+        }
+
+        // If foreign key constraint failed
+        if (error.code === '23503' || errMsg.includes('foreign key') || errMsg.includes('violates foreign key')) {
+          fallbackPayload.assignee_id = null;
+        }
+
+        const retryRes = await supabase.from('demands').upsert(fallbackPayload);
+        if (!retryRes.error) {
+          savedToSupabase = true;
+        } else {
+          console.error('Falha persistente ao salvar no Supabase:', retryRes.error);
+          supabaseWarning = `Aviso do Supabase: ${retryRes.error.message}`;
+        }
+      }
+    } catch (err: any) {
+      console.error('Exceção ao salvar demanda no Supabase:', err);
+      supabaseWarning = err?.message || 'Erro ao sincronizar com Supabase';
     }
   }
+
+  return {
+    success: true,
+    message: savedToSupabase 
+      ? 'Demanda salva no banco de dados e sincronizada na nuvem!' 
+      : 'Demanda salva no banco de dados do servidor!',
+    warning: supabaseWarning,
+  };
 }
 
-export async function quickUpdateStatus(id: string, status: DemandStatus): Promise<void> {
+export async function quickUpdateStatus(id: string, status: DemandStatus): Promise<{ success: boolean; message: string }> {
   const localList = getLocalDemands();
   const item = localList.find(d => d.id === id);
   const nowIso = new Date().toISOString();
@@ -247,6 +413,18 @@ export async function quickUpdateStatus(id: string, status: DemandStatus): Promi
     saveLocalDemands(localList);
   }
 
+  // 1. Update on Server Database
+  try {
+    await fetch(`/api/demands/${id}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    });
+  } catch (err) {
+    console.warn('Erro ao atualizar status no servidor:', err);
+  }
+
+  // 2. Update on Supabase
   const supabase = getSupabaseClient();
   if (supabase) {
     try {
@@ -259,19 +437,36 @@ export async function quickUpdateStatus(id: string, status: DemandStatus): Promi
       } else {
         updatePayload.completed_at = null;
       }
-      await supabase
+
+      const { error } = await supabase
         .from('demands')
         .update(updatePayload)
         .eq('id', id);
+
+      if (error && error.message.toLowerCase().includes('completed_at')) {
+        // Fallback without completed_at if column doesn't exist
+        await supabase
+          .from('demands')
+          .update({ status, updated_at: nowIso })
+          .eq('id', id);
+      }
     } catch (err) {
       console.error('Erro ao atualizar status no Supabase:', err);
     }
   }
+
+  return { success: true, message: `Status alterado para "${status}" e salvo no banco de dados!` };
 }
 
 export async function removeDemand(id: string): Promise<void> {
   const localList = getLocalDemands().filter(d => d.id !== id);
   saveLocalDemands(localList);
+
+  try {
+    await fetch(`/api/demands/${id}`, { method: 'DELETE' });
+  } catch (err) {
+    console.warn('Erro ao remover demanda no servidor:', err);
+  }
 
   const supabase = getSupabaseClient();
   if (supabase) {
@@ -280,6 +475,29 @@ export async function removeDemand(id: string): Promise<void> {
     } catch (err) {
       console.error('Erro ao remover demanda no Supabase:', err);
     }
+  }
+}
+
+export async function syncAllLocalDataToServer(): Promise<{ success: boolean; message: string }> {
+  try {
+    const members = getLocalMembers();
+    const demands = getLocalDemands();
+    const res = await fetch('/api/database/sync-from-client', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ members, demands }),
+    });
+    if (!res.ok) throw new Error(`Status ${res.status}`);
+    const data = await res.json();
+    return {
+      success: true,
+      message: `Sincronizado com o banco de dados do servidor: ${data.demandsCount} demandas e ${data.membersCount} membros.`,
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      message: `Erro ao enviar dados para o servidor: ${err.message}`,
+    };
   }
 }
 
@@ -308,23 +526,35 @@ export async function uploadLocalDataToSupabase(): Promise<{ success: boolean; m
     }
 
     if (demands.length > 0) {
-      const { error: demErr } = await supabase.from('demands').upsert(
-        demands.map(d => ({
-          id: d.id,
-          title: d.title,
-          description: d.description || '',
-          assignee_id: d.assignee_id || null,
-          requester: d.requester,
-          due_date: d.due_date,
-          category: d.category,
-          priority: d.priority,
-          status: d.status,
-          files_link: d.files_link || '',
-          created_at: d.created_at || new Date().toISOString(),
-          updated_at: d.updated_at || new Date().toISOString(),
-        }))
-      );
-      if (demErr) throw demErr;
+      const formattedDemands = demands.map(d => ({
+        id: d.id,
+        title: d.title,
+        description: d.description || '',
+        assignee_id: d.assignee_id || null,
+        additional_assignees: d.additional_assignees || [],
+        requester: d.requester,
+        due_date: d.due_date,
+        category: d.category,
+        priority: d.priority,
+        status: d.status,
+        files_link: d.files_link || '',
+        created_at: d.created_at || new Date().toISOString(),
+        updated_at: d.updated_at || new Date().toISOString(),
+        completed_at: d.completed_at || null,
+      }));
+
+      const { error: demErr } = await supabase.from('demands').upsert(formattedDemands);
+      if (demErr) {
+        // Fallback without newer columns if table schema is older
+        const strippedDemands = formattedDemands.map(d => {
+          const copy: any = { ...d };
+          delete copy.completed_at;
+          delete copy.additional_assignees;
+          return copy;
+        });
+        const retry = await supabase.from('demands').upsert(strippedDemands);
+        if (retry.error) throw retry.error;
+      }
     }
 
     return {

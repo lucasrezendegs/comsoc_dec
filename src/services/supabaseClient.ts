@@ -134,6 +134,7 @@ CREATE TABLE IF NOT EXISTS public.demands (
   title TEXT NOT NULL,
   description TEXT,
   assignee_id TEXT REFERENCES public.team_members(id) ON DELETE SET NULL,
+  additional_assignees JSONB DEFAULT '[]'::jsonb,
   requester TEXT NOT NULL,
   due_date TEXT NOT NULL,
   category TEXT NOT NULL,
@@ -141,8 +142,13 @@ CREATE TABLE IF NOT EXISTS public.demands (
   status TEXT NOT NULL,
   files_link TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  completed_at TIMESTAMPTZ
 );
+
+-- Garantir que colunas recentes existam mesmo em tabelas pré-existentes:
+ALTER TABLE public.demands ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ;
+ALTER TABLE public.demands ADD COLUMN IF NOT EXISTS additional_assignees JSONB DEFAULT '[]'::jsonb;
 
 -- 3. Configuração de Políticas de Acesso Público (RLS)
 -- Como o sistema é aberto para uso interno sem login obrigatório:
@@ -170,4 +176,14 @@ BEGIN;
   DROP PUBLICATION IF EXISTS supabase_realtime;
   CREATE PUBLICATION supabase_realtime FOR TABLE public.team_members, public.demands;
 COMMIT;
+`;
+
+export const SUPABASE_MIGRATION_SQL = `-- ===============================================================
+-- SCRIPT DE ATUALIZAÇÃO RÁPIDA (MIGRAÇÃO)
+-- Execute este script no SQL Editor caso já tenha criado as tabelas:
+-- ===============================================================
+ALTER TABLE public.demands ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ;
+ALTER TABLE public.demands ADD COLUMN IF NOT EXISTS additional_assignees JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.demands DROP CONSTRAINT IF EXISTS demands_assignee_id_fkey;
+ALTER TABLE public.demands ADD CONSTRAINT demands_assignee_id_fkey FOREIGN KEY (assignee_id) REFERENCES public.team_members(id) ON DELETE SET NULL;
 `;

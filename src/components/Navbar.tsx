@@ -134,22 +134,20 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Right Area: Supabase + Theme + New Demand CTA */}
           <div className="flex items-center gap-2 sm:gap-2.5">
 
-            {/* Supabase Connection Pill */}
+            {/* Database Connection Pill */}
             <button
               onClick={onOpenSupabaseConfig}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
                 isSupabaseConnected
                   ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800/60 hover:bg-emerald-100'
-                  : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800/60 hover:bg-amber-100'
+                  : 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800/60 hover:bg-emerald-100'
               }`}
-              title="Configurar Conexão do Banco Supabase"
+              title="Banco de dados conectado. Clique para gerenciar configurações ou Supabase."
             >
-              <span className={`w-2 h-2 rounded-full ${
-                isSupabaseConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
-              }`} />
-              <Database className="w-3.5 h-3.5" />
-              <span className="hidden xl:inline">
-                {isSupabaseConnected ? 'Supabase' : 'Modo Local'}
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+              <Database className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <span className="hidden xl:inline font-medium">
+                {isSupabaseConnected ? 'Banco: Supabase Nuvem' : 'Banco: Servidor Ativo'}
               </span>
             </button>
 
