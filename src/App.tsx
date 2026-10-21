@@ -273,7 +273,7 @@ function AppContent() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main className="flex-1 w-full max-w-[1600px] mx-auto px-3 sm:px-4 lg:px-6 py-6">
         {/* Tab 1: Visão Geral (Todas as Demandas) */}
         {currentTab === 'overview' && (
           <div className="animate-in fade-in duration-200">
