@@ -138,18 +138,24 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({
           return (
             <div
               key={member.id}
-              className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200/90 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-200 shadow-xs hover:shadow-md"
+              onClick={() => onViewMemberDemands?.(member.id)}
+              className={`bg-white dark:bg-slate-900 rounded-2xl p-5 border transition-all duration-200 shadow-xs hover:shadow-lg select-none relative ${
+                onViewMemberDemands
+                  ? 'cursor-pointer border-slate-200/90 dark:border-slate-800 hover:border-sky-500 dark:hover:border-sky-400 group hover:-translate-y-0.5'
+                  : 'border-slate-200/90 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+              }`}
+              title={onViewMemberDemands ? `Clique para abrir todas as demandas de ${member.name}` : undefined}
             >
               <div className="flex items-start justify-between gap-3 mb-4">
                 <div className="flex items-center gap-3">
                   <div
-                    className="w-12 h-12 rounded-2xl flex items-center justify-center text-base font-bold text-white shadow-md shrink-0"
+                    className="w-12 h-12 rounded-2xl flex items-center justify-center text-base font-bold text-white shadow-md shrink-0 group-hover:scale-105 transition-transform"
                     style={{ backgroundColor: member.avatar_color || '#3B82F6' }}
                   >
                     {getInitials(member.name)}
                   </div>
                   <div>
-                    <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                    <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-1.5 group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">
                       <span>{member.name}</span>
                     </h3>
                     <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 mt-0.5">
@@ -188,31 +194,39 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({
               {/* Actions Footer */}
               <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800/80 text-xs">
                 {onViewMemberDemands ? (
-                  <button
-                    type="button"
-                    onClick={() => onViewMemberDemands(member.id)}
-                    className="text-xs text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 font-semibold transition cursor-pointer flex items-center gap-1 hover:underline"
-                    title={`Ver as demandas de ${member.name}`}
+                  <div
+                    className="text-xs text-sky-600 dark:text-sky-400 group-hover:text-sky-700 dark:group-hover:text-sky-300 font-semibold transition flex items-center gap-1 group-hover:underline"
                   >
                     <span>Ver Demandas</span>
-                    <span aria-hidden="true">→</span>
-                  </button>
+                    <span aria-hidden="true" className="group-hover:translate-x-1 transition-transform">→</span>
+                  </div>
                 ) : (
                   <span className="text-[11px] text-slate-400 font-medium">
                     {activeTasks} ativa(s) • {completedTasks} concluída(s)
                   </span>
                 )}
 
-                <div className="flex items-center gap-1 ml-auto">
+                <div 
+                  className="flex items-center gap-1 ml-auto"
+                  onClick={e => e.stopPropagation()}
+                >
                   <button
-                    onClick={() => openEditModal(member)}
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openEditModal(member);
+                    }}
                     className="p-1.5 rounded-lg text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
                     title="Editar dados do integrante"
                   >
                     <Edit2 className="w-3.5 h-3.5" />
                   </button>
                   <button
-                    onClick={() => handleDelete(member)}
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(member);
+                    }}
                     className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition cursor-pointer"
                     title="Remover integrante"
                   >
